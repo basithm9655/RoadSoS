@@ -15,6 +15,7 @@ export default function SOSButton() {
   const { showToast } = useToast();
 
   const [phase, setPhase] = useState('idle'); // idle | confirming | triggered | calling
+  const [hasCalled108, setHasCalled108] = useState(false);
   const [responderCount, setResponderCount] = useState(0);
   const confirmTimer = useRef(null);
   const pulseAudio = useRef(null);
@@ -133,6 +134,7 @@ export default function SOSButton() {
   const resetSOS = useCallback(() => {
     setPhase('idle');
     setResponderCount(0);
+    setHasCalled108(false);
     if (pulseAudio.current) {
       pulseAudio.current.pause();
       pulseAudio.current = null;
@@ -185,9 +187,18 @@ export default function SOSButton() {
           </div>
         </div>
 
-        <a href="tel:108" className="call-108-btn">
-          📞 CALL 108 NOW
-        </a>
+        {!hasCalled108 && (
+          <a 
+            href="tel:108" 
+            className="call-108-btn"
+            onClick={() => {
+              setHasCalled108(true);
+              showToast('📞 Initiating emergency call to 108...', 'info');
+            }}
+          >
+            📞 CALL 108 NOW
+          </a>
+        )}
 
         <div className="sos-location-display">
           {location ? (

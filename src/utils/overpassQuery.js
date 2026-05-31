@@ -10,20 +10,25 @@ const OVERPASS_MIRRORS = [
 /**
  * PARALLEL RACE strategy — all 6 mirrors queried simultaneously.
  * Whichever responds first wins. Dramatically faster than sequential fallback.
- * Uses GET requests to avoid CORS preflight blocks on mobile/WebView.
+ * Uses POST requests to avoid CORS preflight blocks on mobile/WebView and prevent 406 blocks.
  * If all fail or offline, automatically returns hyper-localized realistic mock fallback data.
  */
 export async function queryNearbyFacilities(lat, lon, radius = 5000) {
-  const query = `[out:json][timeout:20];(node["amenity"="hospital"](around:${radius},${lat},${lon});node["amenity"="clinic"](around:${radius},${lat},${lon});node["amenity"="police"](around:${radius},${lat},${lon});node["amenity"="fire_station"](around:${radius},${lat},${lon});node["amenity"="pharmacy"](around:${radius},${lat},${lon});node["shop"="car_repair"](around:${radius},${lat},${lon});node["emergency"="roadside_assistance"](around:${radius},${lat},${lon}););out body;`;
+  // Query node, way, and relation (nwr) to find all matching facilities,
+  // and use 'out center;' to get coordinate centers for polygons (ways/relations).
+  const query = `[out:json][timeout:20];(nwr["amenity"="hospital"](around:${radius},${lat},${lon});nwr["amenity"="clinic"](around:${radius},${lat},${lon});nwr["amenity"="police"](around:${radius},${lat},${lon});nwr["amenity"="fire_station"](around:${radius},${lat},${lon});nwr["amenity"="pharmacy"](around:${radius},${lat},${lon});nwr["shop"="car_repair"](around:${radius},${lat},${lon});nwr["emergency"="roadside_assistance"](around:${radius},${lat},${lon}););out center;`;
 
   // Launch all mirrors simultaneously — first success wins
   const mirrorRaces = OVERPASS_MIRRORS.map(async (mirrorUrl) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout per mirror
     try {
-      const url = `${mirrorUrl}?data=${encodeURIComponent(query)}`;
-      const res = await fetch(url, {
-        method: 'GET',
+      const res = await fetch(mirrorUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `data=${encodeURIComponent(query)}`,
         signal: controller.signal,
         mode: 'cors',
         cache: 'no-cache',
@@ -32,6 +37,9 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (!data || !Array.isArray(data.elements)) throw new Error('Bad response');
+      if (data.elements.length === 0) {
+        throw new Error('Zero emergency facilities returned by this mirror');
+      }
       return data.elements;
     } catch (e) {
       clearTimeout(timeoutId);
@@ -81,8 +89,8 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
         id: el.id,
         type,
         name: el.tags?.name || el.tags?.['name:en'] || getFacilityDefault(type),
-        lat: el.lat,
-        lon: el.lon,
+        lat: el.lat || el.center?.lat,
+        lon: el.lon || el.center?.lon,
         phone: el.tags?.phone || el.tags?.['contact:phone'] || null,
         website: el.tags?.website || null,
         opening_hours: el.tags?.opening_hours || null,
