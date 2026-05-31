@@ -81,3 +81,88 @@ graph TD
 *   **Implementation:** Bypasses manual reporting steps by directly pushing the telemetry log and location coordinates onto the State emergency dispatch dashboard for high-speed routing.
 
 
+so now i am creating a web also app from first  with a  big sos button . completly mobile friendly . so in thisapp  a big sos button , then showing ambulance , police , fire and rescue, highway help,unified  emergency . user friendly . also NEAREST
+
+FACILITIEs.  also using api like OpenStreetMap + Overpass API
+
+
+
+Free forever.
+
+
+
+Get:
+
+
+
+Hospitals
+
+Clinics
+
+Police stations
+
+Fire stations
+
+Ambulance locations (if mapped)
+
+https://overpass-api.de/api/interpreter
+
+
+
+[out:json];
+
+(
+
+  node["amenity"="hospital"](around:5000,11.0168,76.9558);
+
+);
+
+out;
+
+
+
+and 
+
+
+
+🚓 Police Stations
+
+
+
+Use Overpass API.
+
+
+
+Query:
+
+
+
+node["amenity"="police"]
+
+
+
+and
+
+
+
+🚑 Ambulance Numbers
+
+Government Emergency
+
+
+
+Store:
+
+
+
+{
+
+  "ambulance": "108",
+
+  "police": "100",
+
+  "emergency": "112"
+
+}
+
+.    also add page to add family and friend number adding page . so when we click sos the family will get . then full page family alarm .also google assistant conncet . also a first aid community  like (nurse , doctor ). also a page for all emergency number dislpay page . crowd rescue network (to send 500m alert with location . so they know with location .). with ai chatbot (with asking question for first aid ). for now we using google sheet as data base for first aid community . also when i click the volume down button three time the sos will trigger . also work in lock screen . also here we added a new feature we need to click two time on sos for the automation (to avoid accidental click ) so when they click ones the button will hightlight as big also marked as clcik again to confirm . if iclick again it will change into call 108 i i clciked the call for 108 will gone . also in this app the ambulanace login need. so when the victim will click the sos the nearby ambulance app will notified . 

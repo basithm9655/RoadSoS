@@ -32,11 +32,20 @@ export default function MapPage() {
   const lastFetchTime     = useRef(0);     // timestamp of last successful fetch
   const FETCH_COOLDOWN    = 60 * 1000;     // 1 minute in ms
 
-  // 1. Immediately load cached data on mount for offline visibility
+  // 1. Immediately load cached data on mount for offline visibility (filtering/clearing old mock data)
   useEffect(() => {
     const cachedFac = localStorage.getItem('roadsos_facilities');
     if (cachedFac) {
-      try { setFacilities(JSON.parse(cachedFac)); } catch (_) {}
+      try {
+        const parsed = JSON.parse(cachedFac);
+        const hasMock = parsed.some(f => f.isMock || (typeof f.id === 'string' && f.id.startsWith('mock')));
+        if (!hasMock) {
+          setFacilities(parsed);
+        } else {
+          // Clear contaminated cache containing demo/mock data
+          localStorage.removeItem('roadsos_facilities');
+        }
+      } catch (_) {}
     }
   }, []);
 
@@ -80,16 +89,21 @@ export default function MapPage() {
         haversine(activeLoc.lat, activeLoc.lon, b.lat, b.lon)
       );
       setFacilities(sorted);
-      try {
-        localStorage.setItem('roadsos_facilities', JSON.stringify(sorted));
-      } catch (_) {}
+      
+      // Save to cache ONLY if they are real facilities, NOT mock fallbacks!
+      const hasMock = sorted.some(f => f.isMock);
+      if (!hasMock && sorted.length > 0) {
+        try {
+          localStorage.setItem('roadsos_facilities', JSON.stringify(sorted));
+        } catch (_) {}
+      }
       lastFetchTime.current = Date.now();   // record fetch timestamp
       setNetStatus('success');
       // Clear success badge after 3s
       setTimeout(() => setNetStatus('idle'), 3000);
     } catch (e) {
       console.warn('MapPage load error:', e);
-      setNetStatus('busy');
+      setNetStatus(typeof navigator !== 'undefined' && navigator.onLine ? 'busy' : 'offline');
     } finally {
       setLoading(false);
     }

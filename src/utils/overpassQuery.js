@@ -1,19 +1,17 @@
 const OVERPASS_MIRRORS = [
   'https://overpass-api.de/api/interpreter',
-  'https://overpass.osm.ch/api/interpreter',
-  'https://overpass.nchc.org.tw/api/interpreter',
-  'https://overpass.openstreetmap.fr/api/interpreter',
   'https://lz4.overpass-api.de/api/interpreter',
-  'https://z.overpass-api.de/api/interpreter'
+  'https://z.overpass-api.de/api/interpreter',
+  'https://overpass.openstreetmap.fr/api/interpreter'
 ];
 
 /**
- * PARALLEL RACE strategy — all 6 mirrors queried simultaneously.
+ * PARALLEL RACE strategy — global high-availability mirrors queried simultaneously.
  * Whichever responds first wins. Dramatically faster than sequential fallback.
  * Uses POST requests to avoid CORS preflight blocks on mobile/WebView and prevent 406 blocks.
  * If all fail or offline, automatically returns hyper-localized realistic mock fallback data.
  */
-export async function queryNearbyFacilities(lat, lon, radius = 5000) {
+export async function queryNearbyFacilities(lat, lon, radius = 15000) {
   // Query node, way, and relation (nwr) to find all matching facilities,
   // and use 'out center;' to get coordinate centers for polygons (ways/relations).
   const query = `[out:json][timeout:20];(nwr["amenity"="hospital"](around:${radius},${lat},${lon});nwr["amenity"="clinic"](around:${radius},${lat},${lon});nwr["amenity"="police"](around:${radius},${lat},${lon});nwr["amenity"="fire_station"](around:${radius},${lat},${lon});nwr["amenity"="pharmacy"](around:${radius},${lat},${lon});nwr["shop"="car_repair"](around:${radius},${lat},${lon});nwr["emergency"="roadside_assistance"](around:${radius},${lat},${lon}););out center;`;
@@ -98,6 +96,11 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
       };
     });
   } catch (err) {
+    // If online, do NOT return fake mock data. Propagate the error so that the app correctly shows a real busy/offline state.
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      throw err;
+    }
+
     console.warn('[Overpass] Real mirrors failed or device offline. Generating highly realistic local fallback data:', err.message);
 
     // Create 7 high-fidelity fallback facilities offset from user coordinates
@@ -110,7 +113,8 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
         lon: lon - 0.0041,
         phone: '044-28271010',
         address: '12 Emergency St, Central Zone',
-        website: 'https://roadsos.org'
+        website: 'https://roadsos.org',
+        isMock: true
       },
       {
         id: 'mock-clinic',
@@ -119,7 +123,8 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
         lat: lat - 0.0028,
         lon: lon + 0.0035,
         phone: '044-24356789',
-        address: '45 Health Ave, West Road'
+        address: '45 Health Ave, West Road',
+        isMock: true
       },
       {
         id: 'mock-police',
@@ -128,7 +133,8 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
         lat: lat + 0.0051,
         lon: lon + 0.0012,
         phone: '100',
-        address: '1 Law Enforcement Rd'
+        address: '1 Law Enforcement Rd',
+        isMock: true
       },
       {
         id: 'mock-fire',
@@ -137,7 +143,8 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
         lat: lat - 0.0042,
         lon: lon - 0.0025,
         phone: '101',
-        address: '77 Safety Boulevard'
+        address: '77 Safety Boulevard',
+        isMock: true
       },
       {
         id: 'mock-pharm',
@@ -146,7 +153,8 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
         lat: lat + 0.0015,
         lon: lon - 0.0022,
         phone: '044-24419999',
-        address: '3 Pharmacy Plaza, Market Rd'
+        address: '3 Pharmacy Plaza, Market Rd',
+        isMock: true
       },
       {
         id: 'mock-mech1',
@@ -155,7 +163,8 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
         lat: lat + 0.0025,
         lon: lon + 0.0048,
         phone: '044-28889999',
-        address: '88 Express Highway Service Rd'
+        address: '88 Express Highway Service Rd',
+        isMock: true
       },
       {
         id: 'mock-mech2',
@@ -164,7 +173,8 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
         lat: lat - 0.0035,
         lon: lon - 0.0052,
         phone: '044-29990000',
-        address: 'A-2 Bypass Link'
+        address: 'A-2 Bypass Link',
+        isMock: true
       }
     ];
 
