@@ -63,6 +63,10 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
   try {
     const elements = await promiseAny(mirrorRaces);
 
+    if (!elements || elements.length === 0) {
+      throw new Error('Zero emergency facilities found on OpenStreetMap in this radius');
+    }
+
     return elements.map(el => {
       let type = 'unknown';
       if (el.tags?.amenity) {
