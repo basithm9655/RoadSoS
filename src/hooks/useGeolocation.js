@@ -44,60 +44,81 @@ export function useGeolocation() {
 
     setLoading(true);
 
-    // High accuracy configuration
-    const highAccuracyOptions = {
+    // Fast low-accuracy tower/network config (returns in < 1 sec)
+    const towerOptions = {
+      enableHighAccuracy: false,
+      timeout: 2000,
+      maximumAge: 5000
+    };
+
+    // Slow high-accuracy satellite GPS config
+    const gpsOptions = {
       enableHighAccuracy: true,
-      timeout: 8000, // Wait up to 8 seconds for high quality GPS sat lock
+      timeout: 10000,
       maximumAge: 10000
     };
 
-    // Low accuracy configuration (Auto fallback)
-    const lowAccuracyOptions = {
-      enableHighAccuracy: false,
-      timeout: 15000, // Generous timeout for tower/WiFi triangulation
-      maximumAge: 30000
-    };
+    let locationResolved = false;
 
-    function successCallback(pos) {
+    function handleResolvedLocation(pos, source) {
+      console.log(`[Geolocation] Location resolved from ${source} (Accuracy: ${pos.coords.accuracy}m)`);
       const loc = {
         lat: pos.coords.latitude,
         lon: pos.coords.longitude,
         accuracy: pos.coords.accuracy,
         timestamp: pos.timestamp
       };
-      setLocation(loc);
+      
+      // Update location immediately if we haven't locked onto a more accurate source yet
+      setLocation((current) => {
+        if (current && current.accuracy <= loc.accuracy) {
+          // Keep the existing location if it has better or equal accuracy
+          return current;
+        }
+        return loc;
+      });
+
       setLoading(false);
       setPermission('granted');
       setError(null);
-      
-      // Save location in BOTH cache keys to align with map page seamlessly
+
+      // Store in caches
       localStorage.setItem('roadsos_last_location', JSON.stringify(loc));
       localStorage.setItem('roadsos_last_loc', JSON.stringify({ lat: loc.lat, lon: loc.lon }));
+      locationResolved = true;
     }
 
-    function failCallback(err) {
-      console.warn(`GPS High Accuracy failed (Code ${err.code}): ${err.message}. Retrying with Low Accuracy...`);
-      
-      // Try low-accuracy triangulation fallback
-      navigator.geolocation.getCurrentPosition(
-        successCallback,
-        (fallbackErr) => {
-          console.error('Low accuracy geolocation fallback also failed:', fallbackErr);
-          setError(fallbackErr.message || 'Could not resolve location coordinates');
+    // 1. Instantly trigger tower/network query for a rapid 1-second lock
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        handleResolvedLocation(pos, 'Network/Tower');
+      },
+      (err) => {
+        console.warn(`[Geolocation] Fast network location query failed: ${err.message}`);
+      },
+      towerOptions
+    );
+
+    // 2. Simultaneously start high-accuracy GPS satellite query in the background
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        handleResolvedLocation(pos, 'GPS Satellites');
+      },
+      (err) => {
+        console.warn(`[Geolocation] High-accuracy GPS query failed: ${err.message}`);
+        // If we haven't resolved any location from network either, report the error and read from cache
+        if (!locationResolved) {
+          setError(err.message || 'Could not resolve location coordinates');
           setLoading(false);
-          if (fallbackErr.code === fallbackErr.PERMISSION_DENIED) {
+          if (err.code === err.PERMISSION_DENIED) {
             setPermission('denied');
           }
-          
-          // Last resort: read from localStorage
           const cached = localStorage.getItem('roadsos_last_location');
           if (cached) setLocation(JSON.parse(cached));
-        },
-        lowAccuracyOptions
-      );
-    }
-
-    navigator.geolocation.getCurrentPosition(successCallback, failCallback, highAccuracyOptions);
+        }
+      },
+      gpsOptions
+    );
   }, []);
 
   useEffect(() => {
