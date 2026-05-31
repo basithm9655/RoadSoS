@@ -54,14 +54,53 @@ export default function FamilyPage() {
   function sendTestAlert() {
     if (contacts.length === 0) { showToast('Add contacts first', 'warning'); return; }
     const location = JSON.parse(localStorage.getItem('roadsos_last_location') || 'null');
-    const mapsLink = location ? `https://maps.google.com/?q=${location.lat},${location.lon}` : 'Location unavailable';
+    const mapsLink = location ? `https://maps.google.com/?q=${location.lat},${location.lon}` : 'Location details pending live GPS lock';
+    const timeStr = new Date().toLocaleTimeString();
+
+    showToast('⏳ Dispatching test SMS alerts...', 'info', 2000);
+
+    // 1. Dispatch SMS using Twilio Serverless backend
+    const apiHost = window.location.origin.startsWith('http') && !window.location.origin.includes('localhost:51')
+      ? window.location.origin
+      : 'https://roadsos.vercel.app';
+
+    fetch(`${apiHost}/api/send-sms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userName: 'Test User (RoadSOS Setup)',
+        mapsLink,
+        time: timeStr,
+        contacts
+      })
+    })
+    .then(res => {
+      if (!res.ok) {
+        return res.json().then(errData => {
+          throw new Error(errData.error || `HTTP ${res.status}`);
+        });
+      }
+      return res.json();
+    })
+    .then(data => {
+      if (data.success) {
+        showToast(`📲 Twilio Test SMS successfully sent to ${data.delivered} contact(s)!`, 'success', 6000);
+      } else {
+        throw new Error(data.error || 'Test dispatch rejected');
+      }
+    })
+    .catch(err => {
+      console.error('[Test SMS Error]', err);
+      showToast(`⚠️ Twilio Setup Error: ${err.message}`, 'error', 12000);
+    });
+
+    // 2. Open WhatsApp as backup
     const msg = encodeURIComponent(
-      `⚠️ TEST ALERT from RoadSOS!\nThis is a test notification.\nIn a real emergency, your location (${mapsLink}) would be shared automatically.\nTime: ${new Date().toLocaleTimeString()}`
+      `⚠️ TEST ALERT from RoadSOS!\nThis is a test notification.\nIn a real emergency, your location (${mapsLink}) would be shared automatically.\nTime: ${timeStr}`
     );
     contacts.forEach(c => {
       if (c.phone) window.open(`https://wa.me/91${c.phone}?text=${msg}`, '_blank');
     });
-    showToast('✅ Test alerts sent via WhatsApp', 'success');
   }
 
   return (

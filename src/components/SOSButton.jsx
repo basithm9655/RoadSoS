@@ -52,7 +52,12 @@ export default function SOSButton() {
 
       // 3. Dispatch backend Twilio SMS securely via our Vercel Serverless Function
       if (familyContacts.length > 0) {
-        fetch('/api/send-sms', {
+        // Resolve absolute URL to target live Vercel endpoint even from local dev or mobile wrappers
+        const apiHost = window.location.origin.startsWith('http') && !window.location.origin.includes('localhost:51')
+          ? window.location.origin
+          : 'https://roadsos.vercel.app'; // Fallback to live URL
+
+        fetch(`${apiHost}/api/send-sms`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -62,18 +67,24 @@ export default function SOSButton() {
             contacts: familyContacts
           })
         })
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) {
+            return res.json().then(errData => {
+              throw new Error(errData.error || `HTTP ${res.status}`);
+            });
+          }
+          return res.json();
+        })
         .then(data => {
           if (data.success) {
-            showToast(`📲 Twilio SMS sent to ${data.delivered} family contact(s)!`, 'success', 5000);
+            showToast(`📲 Twilio SMS sent to ${data.delivered} family contact(s)!`, 'success', 6000);
           } else {
-            console.warn('[Twilio API Error]', data.error);
-            showToast('⚠️ Twilio SMS failed: ' + data.error, 'error', 5000);
+            throw new Error(data.error || 'Unknown dispatch failure');
           }
         })
         .catch(err => {
           console.error('[SMS Dispatch Error]', err);
-          showToast('⚠️ SMS delivery system error', 'error');
+          showToast(`⚠️ Twilio Alert Failed: ${err.message}`, 'error', 10000);
         });
       }
 
