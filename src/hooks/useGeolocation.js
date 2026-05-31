@@ -71,8 +71,12 @@ export function useGeolocation() {
     });
 
     // Save globally so all subsequent sessions start here
-    localStorage.setItem('roadsos_last_location', JSON.stringify(loc));
-    localStorage.setItem('roadsos_last_loc', JSON.stringify({ lat, lon }));
+    try {
+      localStorage.setItem('roadsos_last_location', JSON.stringify(loc));
+      localStorage.setItem('roadsos_last_loc', JSON.stringify({ lat, lon }));
+    } catch (e) {
+      console.warn('[Storage] LocalStorage write blocked (typical in Safari Private mode):', e);
+    }
   }, []);
 
   const getLocation = useCallback(() => {

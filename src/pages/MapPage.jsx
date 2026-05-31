@@ -54,7 +54,9 @@ export default function MapPage() {
     if (liveLocation && !hasRealGPSRef.current) {
       hasRealGPSRef.current = true;
       setLocation(liveLocation);
-      localStorage.setItem('roadsos_last_loc', JSON.stringify(liveLocation));
+      try {
+        localStorage.setItem('roadsos_last_loc', JSON.stringify(liveLocation));
+      } catch (_) {}
       loadFacilities(liveLocation, true); // force=true to bypass cooldown for first real GPS fetch
     }
   }, [liveLocation]);
@@ -78,7 +80,9 @@ export default function MapPage() {
         haversine(activeLoc.lat, activeLoc.lon, b.lat, b.lon)
       );
       setFacilities(sorted);
-      localStorage.setItem('roadsos_facilities', JSON.stringify(sorted));
+      try {
+        localStorage.setItem('roadsos_facilities', JSON.stringify(sorted));
+      } catch (_) {}
       lastFetchTime.current = Date.now();   // record fetch timestamp
       setNetStatus('success');
       // Clear success badge after 3s
