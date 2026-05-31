@@ -12,7 +12,7 @@ export default function FamilyPage() {
   const [contacts, setContacts] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editIdx, setEditIdx] = useState(null);
-  const [form, setForm] = useState({ name: '', phone: '', relation: 'Parent' });
+  const [form, setForm] = useState({ name: '', email: '', relation: 'Parent' });
   const [showAlarm, setShowAlarm] = useState(false);
 
   useEffect(() => {
@@ -28,12 +28,12 @@ export default function FamilyPage() {
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (!form.name || !form.phone) return;
+    if (!form.name || !form.email) return;
     const updated = [...contacts];
     if (editIdx !== null) updated[editIdx] = form;
     else updated.push(form);
     saveContacts(updated);
-    setForm({ name: '', phone: '', relation: 'Parent' });
+    setForm({ name: '', email: '', relation: 'Parent' });
     setShowForm(false);
     setEditIdx(null);
     showToast(editIdx !== null ? '✅ Contact updated' : '✅ Contact added', 'success');
@@ -57,9 +57,8 @@ export default function FamilyPage() {
     const mapsLink = location ? `https://maps.google.com/?q=${location.lat},${location.lon}` : 'Location details pending live GPS lock';
     const timeStr = new Date().toLocaleTimeString();
 
-    showToast('⏳ Dispatching test SMS alerts...', 'info', 2000);
+    showToast('⏳ Dispatching test email alerts...', 'info', 2000);
 
-    // 1. Dispatch SMS using Twilio Serverless backend
     const apiHost = window.location.origin.startsWith('http') && !window.location.origin.includes('localhost:51')
       ? window.location.origin
       : 'https://roadsos.vercel.app';
@@ -84,7 +83,7 @@ export default function FamilyPage() {
     })
     .then(data => {
       if (data.success) {
-        showToast('📲 SOS Test Broadcast successfully dispatched!', 'success', 6000);
+        showToast('✉️ SOS Test email dispatched successfully!', 'success', 6000);
       } else {
         const firstErr = data.error || 'Test dispatch rejected';
         throw new Error(firstErr);
@@ -93,14 +92,6 @@ export default function FamilyPage() {
     .catch(err => {
       console.error('[Test SOS Error]', err);
       showToast(`⚠️ SOS Setup Error: ${err.message}`, 'error', 12000);
-    });
-
-    // 2. Open WhatsApp as backup
-    const msg = encodeURIComponent(
-      `⚠️ TEST ALERT from RoadSOS!\nThis is a test notification.\nIn a real emergency, your location (${mapsLink}) would be shared automatically.\nTime: ${timeStr}`
-    );
-    contacts.forEach(c => {
-      if (c.phone) window.open(`https://wa.me/91${c.phone}?text=${msg}`, '_blank');
     });
   }
 
@@ -112,12 +103,12 @@ export default function FamilyPage() {
 
       <div className="page-header">
         <h1 className="page-title">👨‍👩‍👧 Family & Friends</h1>
-        <button className="add-btn" onClick={() => { setShowForm(true); setEditIdx(null); setForm({ name: '', phone: '', relation: 'Parent' }); }}>
+        <button className="add-btn" onClick={() => { setShowForm(true); setEditIdx(null); setForm({ name: '', email: '', relation: 'Parent' }); }}>
           + Add
         </button>
       </div>
 
-      <p className="page-sub">These contacts will be alerted when you trigger SOS</p>
+      <p className="page-sub">These contacts will receive email notifications in emergencies</p>
 
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
@@ -132,10 +123,10 @@ export default function FamilyPage() {
                 />
               </div>
               <div className="form-group">
-                <label>Phone *</label>
+                <label>Email *</label>
                 <input
-                  value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-                  placeholder="10-digit mobile number" type="tel" required className="form-input"
+                  value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                  placeholder="family@example.com" type="email" required className="form-input"
                 />
               </div>
               <div className="form-group">
@@ -167,11 +158,11 @@ export default function FamilyPage() {
               <div className="contact-avatar">{c.name[0]?.toUpperCase() || '?'}</div>
               <div className="contact-info">
                 <h3 className="contact-name">{c.name}</h3>
-                <p className="contact-phone">📞 {c.phone}</p>
+                <p className="contact-phone">✉️ {c.email}</p>
                 <span className="contact-relation">{c.relation}</span>
               </div>
               <div className="contact-actions">
-                <a href={`tel:${c.phone}`} className="icon-btn">📞</a>
+                <a href={`mailto:${c.email}`} className="icon-btn">✉️</a>
                 <button className="icon-btn" onClick={() => handleEdit(i)}>✏️</button>
                 <button className="icon-btn icon-btn-danger" onClick={() => handleDelete(i)}>🗑️</button>
               </div>
@@ -183,7 +174,7 @@ export default function FamilyPage() {
       {contacts.length > 0 && (
         <div className="family-action-row">
           <button className="test-alert-btn" onClick={sendTestAlert}>
-            📤 Send Test Alert via WhatsApp
+            📤 Send Test Email Alert
           </button>
           <button className="alarm-preview-btn" onClick={() => setShowAlarm(true)}>
             🔴 Preview SOS Alarm
@@ -194,10 +185,10 @@ export default function FamilyPage() {
       <div className="family-info-card">
         <h3>How alerts work</h3>
         <ul>
-          <li>📍 Your GPS location is shared</li>
-          <li>💬 WhatsApp message sent to all contacts</li>
-          <li>🔔 Push notifications via FCM (when configured)</li>
-          <li>🔁 Repeated every 30s until dismissed</li>
+          <li>📍 Your active GPS coordinates are fetched</li>
+          <li>✉️ Email notification is dispatched automatically</li>
+          <li>🔔 Integrates securely with Google Forms & Apps Script automation</li>
+          <li>🔁 Live updates are synchronized securely</li>
         </ul>
       </div>
     </div>

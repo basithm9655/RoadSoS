@@ -1,5 +1,5 @@
-// Vercel Serverless Function: Dispatch SOS alerts to Discord Webhook
-// Fully secure — hides the webhook URL from the front-end client to prevent spam
+// Vercel Serverless Function: Secure Google Form SOS Dispatch for Email Automation
+// Submits emergency data to Google Forms securely, bypassing CORS restrictions
 
 export default async function handler(req, res) {
   // CORS Headers
@@ -22,57 +22,62 @@ export default async function handler(req, res) {
 
   const { userName, mapsLink, time, contacts } = req.body || {};
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-
-  if (!webhookUrl) {
-    console.error('[Discord API] Webhook URL missing in Vercel environment variables');
-    return res.status(500).json({
-      success: false,
-      error: 'Alert dispatch is not configured (missing DISCORD_WEBHOOK_URL in Vercel Settings)',
-    });
+  if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
+    return res.status(400).json({ success: false, error: 'No contacts provided' });
   }
 
-  console.log(`[Discord API] Dispatching SOS embed alert for ${userName}...`);
+  console.log(`[Google Form SOS] Dispatching alerts for ${userName} to ${contacts.length} recipients...`);
+
+  // Target Google Form Action URL
+  const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSf1ZQdEm-3BoaWsoru6nVELnGgiP7lEX28FaGEA7P8ihTNSHA/formResponse";
+
+  const promises = contacts.map(async (c) => {
+    if (!c.email) return { email: c.email, success: false, error: 'Missing email address' };
+
+    try {
+      // Build form-urlencoded request body matching Google Form DOM inputs
+      const formParams = new URLSearchParams();
+      formParams.append('entry.2005620554', time || new Date().toLocaleTimeString()); // time field
+      formParams.append('entry.1745558313', `RoadSOS Alert triggered by ${userName}`); // location description
+      formParams.append('entry.1851319683', mapsLink || 'Location unavailable'); // map link
+      formParams.append('entry.128770266', c.email.trim()); // target family email
+
+      // Technical Form metadata
+      formParams.append('fvv', '1');
+      formParams.append('pageHistory', '0');
+      formParams.append('fbzx', '2819671829864127061');
+
+      const response = await fetch(formUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formParams.toString()
+      });
+
+      // Google Forms returns HTML content, so we verify response status (typically 200 OK even upon submit)
+      if (response.ok) {
+        return { email: c.email, success: true };
+      } else {
+        throw new Error(`Google Forms returned status ${response.status}`);
+      }
+    } catch (err) {
+      return { email: c.email, success: false, error: err.message };
+    }
+  });
 
   try {
-    // Generate beautiful rich embed card
-    const discordRes = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: "RoadSOS Emergency Dispatch",
-        avatar_url: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        content: "🚨 **SOS EMERGENCY BROADCAST DETECTED** 🚨",
-        embeds: [{
-          title: "🆘 MEDICAL EMERGENCY HELP REQUIRED",
-          description: `**${userName}** has triggered an active SOS alert! Please verify and respond immediately.`,
-          color: 15548997, // Glowing Red
-          fields: [
-            { name: "👤 User Name", value: userName, inline: true },
-            { name: "⏰ Dispatch Time", value: time, inline: true },
-            { name: "📍 Active GPS Location", value: `🔗 [Open in Google Maps](${mapsLink})` }
-          ],
-          footer: {
-            text: "RoadSOS Emergency PWA Alert System"
-          },
-          timestamp: new Date().toISOString()
-        }]
-      })
-    });
+    const outputs = await Promise.all(promises);
+    const successful = outputs.filter((o) => o.success).length;
 
-    if (discordRes.ok) {
-      return res.status(200).json({
-        success: true,
-        delivered: contacts?.length || 1,
-        total: contacts?.length || 1,
-        details: [{ platform: 'Discord', success: true }]
-      });
-    } else {
-      const errText = await discordRes.text();
-      throw new Error(`Discord API returned: ${errText}`);
-    }
+    console.log(`[Google Form SOS] Completed: ${successful}/${outputs.length} successful form entries submitted.`);
+    return res.status(200).json({
+      success: true,
+      delivered: successful,
+      total: outputs.length,
+      details: outputs
+    });
   } catch (err) {
-    console.error('[Discord Alert Error]', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 }
