@@ -26,8 +26,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: 'No contacts provided' });
   }
 
-  // Google Form Action URL matching the live DOM submission format
-  const formUrl = "https://docs.google.com/forms/u/0/d/e/1FAIpQLSf1ZQdEm-3BoaWsoru6nVELnGgiP7lEX28FaGEA7P8ihTNSHA/formResponse?pli=1";
+  // Google Form Action URL matching the public submission format
+  const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSf1ZQdEm-3BoaWsoru6nVELnGgiP7lEX28FaGEA7P8ihTNSHA/formResponse";
 
   console.log(`[Google Form SOS] Submitting emergency data for ${userName} to ${contacts.length} recipients...`);
 
