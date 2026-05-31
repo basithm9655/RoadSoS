@@ -5,51 +5,38 @@ const OVERPASS_MIRRORS = [
 ];
 
 /**
- * Robust fetch for nearby facilities with multi-mirror automatic fallback.
- * Bypasses Overpass server rate limits and outages.
+ * Robust facility query using GET requests (avoids CORS blocks on mobile/WebView).
+ * Auto-falls back through 3 global Overpass mirrors if any fails.
  */
 export async function queryNearbyFacilities(lat, lon, radius = 5000) {
-  const query = `
-    [out:json][timeout:25];
-    (
-      node["amenity"="hospital"](around:${radius},${lat},${lon});
-      node["amenity"="clinic"](around:${radius},${lat},${lon});
-      node["amenity"="police"](around:${radius},${lat},${lon});
-      node["amenity"="fire_station"](around:${radius},${lat},${lon});
-      node["amenity"="pharmacy"](around:${radius},${lat},${lon});
-    );
-    out body;
-  `;
+  const query = `[out:json][timeout:25];(node["amenity"="hospital"](around:${radius},${lat},${lon});node["amenity"="clinic"](around:${radius},${lat},${lon});node["amenity"="police"](around:${radius},${lat},${lon});node["amenity"="fire_station"](around:${radius},${lat},${lon});node["amenity"="pharmacy"](around:${radius},${lat},${lon}););out body;`;
 
   let lastError = null;
 
-  // Try each mirror sequentially until one succeeds
   for (const mirrorUrl of OVERPASS_MIRRORS) {
     try {
-      console.log(`Querying facilities from Overpass mirror: ${mirrorUrl}`);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 second limit per mirror
+      console.log(`[Overpass] Querying: ${mirrorUrl}`);
 
-      const res = await fetch(mirrorUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `data=${encodeURIComponent(query)}`,
-        signal: controller.signal
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      // Use GET request — avoids CORS preflight blocks on mobile/WebView
+      const url = `${mirrorUrl}?data=${encodeURIComponent(query)}`;
+      const res = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal,
+        mode: 'cors',
+        cache: 'no-cache',
       });
 
       clearTimeout(timeoutId);
 
-      if (!res.ok) {
-        throw new Error(`Server returned status ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
-      if (!data.elements) {
-        throw new Error('Malformed API response');
-      }
+      if (!data || !Array.isArray(data.elements)) throw new Error('Malformed response');
 
-      console.log(`Overpass mirror ${mirrorUrl} successfully loaded ${data.elements.length} facilities.`);
+      console.log(`[Overpass] Got ${data.elements.length} results from ${mirrorUrl}`);
 
       return data.elements.map(el => ({
         id: el.id,
@@ -62,14 +49,14 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
         opening_hours: el.tags?.opening_hours || null,
         address: buildAddress(el.tags),
       }));
+
     } catch (e) {
-      console.warn(`Overpass mirror ${mirrorUrl} failed:`, e.message || e);
+      console.warn(`[Overpass] Mirror ${mirrorUrl} failed: ${e.message}`);
       lastError = e;
     }
   }
 
-  // If all mirrors failed, throw the final error
-  throw lastError || new Error('All Overpass API mirrors are currently unreachable');
+  throw lastError || new Error('All Overpass mirrors unreachable');
 }
 
 function getFacilityDefault(amenity) {
@@ -84,13 +71,12 @@ function getFacilityDefault(amenity) {
 }
 
 function buildAddress(tags = {}) {
-  const parts = [
+  return [
     tags['addr:housenumber'],
     tags['addr:street'],
     tags['addr:city'],
     tags['addr:state'],
-  ].filter(Boolean);
-  return parts.join(', ') || null;
+  ].filter(Boolean).join(', ') || null;
 }
 
 export const FACILITY_COLORS = {
