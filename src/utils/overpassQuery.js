@@ -35,8 +35,22 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
     }
   });
 
-  // Promise.any — resolves with the first successful result
-  const elements = await Promise.any(mirrorRaces);
+  // promiseAny: polyfill for Android Chrome < 89 which lacks Promise.any
+  function promiseAny(promises) {
+    return new Promise((resolve, reject) => {
+      let rejCount = 0;
+      const errors = [];
+      promises.forEach((p, i) => {
+        Promise.resolve(p).then(resolve).catch(err => {
+          errors[i] = err;
+          rejCount++;
+          if (rejCount === promises.length) reject(new AggregateError(errors, 'All mirrors failed'));
+        });
+      });
+    });
+  }
+
+  const elements = await promiseAny(mirrorRaces);
 
   return elements.map(el => ({
     id: el.id,

@@ -18,6 +18,13 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  /* Remove 300ms tap delay on all Android Chrome versions */
+  touch-action: manipulation;
+}
+
+button, a, input, select, textarea {
+  -webkit-tap-highlight-color: transparent; /* remove grey flash on Android tap */
+  touch-action: manipulation;
 }
 
 body {
@@ -128,6 +135,7 @@ body {
   border-radius: 16px;
   border: 1px solid rgba(255,255,255,0.05);
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
@@ -143,7 +151,9 @@ body {
   letter-spacing: -0.75px;
   background: linear-gradient(to right, #FF5252, #FF1744);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 .logo-sub {

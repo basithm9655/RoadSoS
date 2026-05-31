@@ -43,8 +43,12 @@ export default function MapView({ userLocation, facilities }) {
     const defaultLat = userLocation?.lat || 11.0168;
     const defaultLon = userLocation?.lon || 76.9558;
 
-    mapInstanceRef.current = L.map(mapRef.current, { zoomControl: true, attributionControl: true })
-      .setView([defaultLat, defaultLon], 14);
+    mapInstanceRef.current = L.map(mapRef.current, {
+      zoomControl: true,
+      attributionControl: true,
+      tap: false,        // prevents ghost click / double-tap issues on Android Chrome
+      tapTolerance: 15,  // looser tolerance for thick fingers
+    }).setView([defaultLat, defaultLon], 14);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution: '© OpenStreetMap, CartoDB',
