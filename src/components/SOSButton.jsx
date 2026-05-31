@@ -45,14 +45,42 @@ export default function SOSButton() {
       const eventId = await createSOSEvent(user?.uid || 'anon', userName, lat, lon);
       setSosEventId(eventId);
 
-      // 2. Alert family via WhatsApp (deep link) + FCM (server-side)
+      // 2. Load contacts & generate maps link
       const familyContacts = JSON.parse(localStorage.getItem('roadsos_family_contacts') || '[]');
       const mapsLink = `https://maps.google.com/?q=${lat},${lon}`;
-      const msg = encodeURIComponent(
-        `🆘 SOS ALERT! ${userName} needs emergency help!\n📍 Location: ${mapsLink}\n⏰ Time: ${new Date().toLocaleTimeString()}\nPlease respond immediately!`
-      );
+      const timeStr = new Date().toLocaleTimeString();
 
-      // Open WhatsApp for first contact (UX fallback)
+      // 3. Dispatch backend Twilio SMS securely via our Vercel Serverless Function
+      if (familyContacts.length > 0) {
+        fetch('/api/send-sms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userName,
+            mapsLink,
+            time: timeStr,
+            contacts: familyContacts
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            showToast(`📲 Twilio SMS sent to ${data.delivered} family contact(s)!`, 'success', 5000);
+          } else {
+            console.warn('[Twilio API Error]', data.error);
+            showToast('⚠️ Twilio SMS failed: ' + data.error, 'error', 5000);
+          }
+        })
+        .catch(err => {
+          console.error('[SMS Dispatch Error]', err);
+          showToast('⚠️ SMS delivery system error', 'error');
+        });
+      }
+
+      // 4. WhatsApp Fallback (Open WA for first contact as redundancy)
+      const msg = encodeURIComponent(
+        `🆘 SOS ALERT! ${userName} needs emergency help!\n📍 Location: ${mapsLink}\n⏰ Time: ${timeStr}\nPlease respond immediately!`
+      );
       if (familyContacts.length > 0 && familyContacts[0].phone) {
         window.open(`https://wa.me/91${familyContacts[0].phone}?text=${msg}`, '_blank');
       }
