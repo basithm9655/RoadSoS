@@ -10,7 +10,7 @@ import { QUICK_CALLS } from '../utils/emergencyNumbers';
 const CONFIRM_TIMEOUT = 4000; // ms to reset after first tap
 
 export default function SOSButton() {
-  const { location } = useGeolocation();
+  const { location, loading: locLoading, refetch: refetchLoc } = useGeolocation();
   const { isOnline, enqueue } = useOfflineQueue();
   const { showToast } = useToast();
 
@@ -217,6 +217,26 @@ export default function SOSButton() {
           📡 Offline — SOS will queue when connection restored
         </div>
       )}
+
+      {/* Dynamic Fused GPS Status Badge */}
+      <div className="gps-status-badge" onClick={refetchLoc} title="Tap to refresh location coordinates">
+        {location ? (
+          <span className="gps-status-text gps-locked">
+            <span className="gps-dot dot-green"></span>
+            🟢 GPS Locked (Acc: {Math.round(location.accuracy)}m)
+          </span>
+        ) : locLoading ? (
+          <span className="gps-status-text gps-loading">
+            <span className="gps-dot dot-pulse-orange"></span>
+            ⏳ Locking Fused GPS (Cell/Sat)...
+          </span>
+        ) : (
+          <span className="gps-status-text gps-blocked">
+            <span className="gps-dot dot-pulse-red"></span>
+            ⚠️ GPS Blocked - Tap to Enable Location
+          </span>
+        )}
+      </div>
 
       <div className="sos-container">
         <div className="sos-ring-outer">

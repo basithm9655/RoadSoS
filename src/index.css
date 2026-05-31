@@ -206,6 +206,89 @@ body {
   margin-bottom: 20px;
 }
 
+/* Dynamic GPS Status Badge */
+.gps-status-badge {
+  background: rgba(30, 41, 59, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 8px 16px;
+  border-radius: 9999px;
+  margin-bottom: 25px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.gps-status-badge:hover {
+  background: rgba(30, 41, 59, 0.65);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+}
+
+.gps-status-badge:active {
+  transform: translateY(0);
+}
+
+.gps-status-text {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gps-locked {
+  color: #10B981;
+}
+
+.gps-loading {
+  color: #F59E0B;
+}
+
+.gps-blocked {
+  color: #EF4444;
+}
+
+.gps-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-green {
+  background-color: #10B981;
+  box-shadow: 0 0 8px #10B981;
+}
+
+.dot-pulse-orange {
+  background-color: #F59E0B;
+  animation: gpsDotPulseOrange 1.5s infinite ease-in-out;
+}
+
+.dot-pulse-red {
+  background-color: #EF4444;
+  animation: gpsDotPulseRed 1.5s infinite ease-in-out;
+}
+
+@keyframes gpsDotPulseOrange {
+  0% { transform: scale(0.9); opacity: 0.6; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 8px 3px rgba(245, 158, 11, 0.3); }
+  100% { transform: scale(0.9); opacity: 0.6; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+}
+
+@keyframes gpsDotPulseRed {
+  0% { transform: scale(0.9); opacity: 0.6; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 8px 3px rgba(239, 68, 68, 0.3); }
+  100% { transform: scale(0.9); opacity: 0.6; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+}
+
 .sos-container {
   display: flex;
   flex-direction: column;
