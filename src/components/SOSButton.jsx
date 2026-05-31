@@ -3,23 +3,19 @@ import { Link } from 'react-router-dom';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useVolumeButton } from '../hooks/useVolumeButton';
-import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { createSOSEvent } from '../utils/firebaseHelpers';
 import { haversine, formatDistance } from '../utils/haversine';
 import { QUICK_CALLS } from '../utils/emergencyNumbers';
 
 const CONFIRM_TIMEOUT = 4000; // ms to reset after first tap
 
 export default function SOSButton() {
-  const { user } = useAuth();
   const { location } = useGeolocation();
   const { isOnline, enqueue } = useOfflineQueue();
   const { showToast } = useToast();
 
   const [phase, setPhase] = useState('idle'); // idle | confirming | triggered | calling
   const [responderCount, setResponderCount] = useState(0);
-  const [sosEventId, setSosEventId] = useState(null);
   const confirmTimer = useRef(null);
   const pulseAudio = useRef(null);
 
@@ -35,27 +31,18 @@ export default function SOSButton() {
     const userName = localStorage.getItem('roadsos_user_name') || 'Unknown User';
 
     if (!isOnline) {
-      await enqueue('sos', { lat, lon, userId: user?.uid, userName, timestamp: Date.now() });
+      await enqueue('sos', { lat, lon, userName, timestamp: Date.now() });
       showToast('📡 SOS queued — will send when online', 'warning', 5000);
       return;
     }
 
     try {
-      // 1. Write to Firestore (resilient try-catch to continue alerting if Firebase is offline/unauthorized)
-      let eventId = 'local-resilient-event';
-      try {
-        eventId = await createSOSEvent(user?.uid || 'anon', userName, lat, lon);
-      } catch (fbErr) {
-        console.warn('[Firebase] Firestore event creation bypassed:', fbErr);
-      }
-      setSosEventId(eventId);
-
-      // 2. Load contacts & generate maps link
+      // 1. Load contacts & generate maps link
       const familyContacts = JSON.parse(localStorage.getItem('roadsos_family_contacts') || '[]');
       const mapsLink = `https://maps.google.com/?q=${lat},${lon}`;
       const timeStr = new Date().toLocaleTimeString();
 
-      // 3. Dispatch backend Twilio SMS securely via our Vercel Serverless Function
+      // 2. Dispatch backend SMS/email securely via our Vercel Serverless Function
       if (familyContacts.length > 0) {
         // Resolve absolute URL to target live Vercel endpoint even from local dev or mobile wrappers
         const isLocalHost = window.location.hostname === 'localhost' || 
@@ -99,18 +86,18 @@ export default function SOSButton() {
         });
       }
 
-      // 4. Fallback redundancy check
+      // 3. Fallback redundancy check
       if (familyContacts.length > 0 && familyContacts[0].email) {
         console.log(`[SOS] Primary email alert target verified: ${familyContacts[0].email}`);
       }
 
       showToast('🆘 SOS triggered! Emergency services alerted.', 'error', 6000);
-      setResponderCount(Math.floor(Math.random() * 3) + 1); // Simulated until FCM is live
+      setResponderCount(Math.floor(Math.random() * 3) + 1); // Simulated responder tracking
     } catch (err) {
       console.error('SOS error:', err);
       showToast('⚠️ SOS sent with limited connectivity', 'warning');
     }
-  }, [location, isOnline, enqueue, user, showToast]);
+  }, [location, isOnline, enqueue, showToast]);
 
   const handleSOSPress = useCallback(() => {
     if (phase === 'idle') {
