@@ -76,16 +76,16 @@ export default function SOSButton() {
           return res.json();
         })
         .then(data => {
-          if (data.success && data.delivered > 0) {
-            showToast(`📲 WhatsApp SOS alert sent to ${data.delivered} contact(s)!`, 'success', 6000);
+          if (data.success) {
+            showToast('🚨 SOS Emergency broadcast sent successfully!', 'success', 6000);
           } else {
-            const firstErr = data.details?.[0]?.error || data.error || 'Recipient not verified in Meta Console';
+            const firstErr = data.error || 'Dispatch rejected';
             throw new Error(firstErr);
           }
         })
         .catch(err => {
-          console.error('[WhatsApp Dispatch Error]', err);
-          showToast(`⚠️ WhatsApp Alert Failed: ${err.message}`, 'error', 12000);
+          console.error('[SOS Dispatch Error]', err);
+          showToast(`⚠️ SOS Alert Failed: ${err.message}`, 'error', 12000);
         });
       }
 

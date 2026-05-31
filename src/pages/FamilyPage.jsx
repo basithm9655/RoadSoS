@@ -83,16 +83,16 @@ export default function FamilyPage() {
       return res.json();
     })
     .then(data => {
-      if (data.success && data.delivered > 0) {
-        showToast(`📲 WhatsApp Test Alert successfully sent to ${data.delivered} contact(s)!`, 'success', 6000);
+      if (data.success) {
+        showToast('📲 SOS Test Broadcast successfully dispatched!', 'success', 6000);
       } else {
-        const firstErr = data.details?.[0]?.error || data.error || 'Recipient not verified in Meta Console';
+        const firstErr = data.error || 'Test dispatch rejected';
         throw new Error(firstErr);
       }
     })
     .catch(err => {
-      console.error('[Test WhatsApp Error]', err);
-      showToast(`⚠️ WhatsApp Setup Error: ${err.message}`, 'error', 12000);
+      console.error('[Test SOS Error]', err);
+      showToast(`⚠️ SOS Setup Error: ${err.message}`, 'error', 12000);
     });
 
     // 2. Open WhatsApp as backup
