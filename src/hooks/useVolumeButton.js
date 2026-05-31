@@ -34,6 +34,12 @@ export function useVolumeButton(onTrigger, enabled = true) {
       }
     };
 
+    // Global handler for native Android wrapper APK to inject physical Volume Up + Down combo presses instantly
+    window.triggerSOSVolumeAlert = () => {
+      console.log('[Native Volume Signal] Instant emergency trigger received.');
+      onTrigger && onTrigger(); // Trigger SOS instantly!
+    };
+
     // MediaSession hack — intercept seekbackward / previoustrack as volume substitute
     if ('mediaSession' in navigator) {
       try {
@@ -54,6 +60,7 @@ export function useVolumeButton(onTrigger, enabled = true) {
     document.addEventListener('keydown', handleKey);
     return () => {
       document.removeEventListener('keydown', handleKey);
+      delete window.triggerSOSVolumeAlert;
       if ('mediaSession' in navigator) {
         try {
           navigator.mediaSession.setActionHandler('seekbackward', null);

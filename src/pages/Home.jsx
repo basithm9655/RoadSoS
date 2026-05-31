@@ -22,7 +22,7 @@ export default function Home() {
       <SOSButton />
 
       <div className="home-tip">
-        <p>🔊 Press volume down 3 times in lock screen to send SOS</p>
+        <p>🔊 Press Volume Up + Volume Down together to send SOS</p>
       </div>
     </div>
   );

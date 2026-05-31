@@ -11,7 +11,7 @@ Here is the exact developer instructions prompt and complete codebase to feed in
 ```text
 Please build a premium native Android wrapper (TWA / WebView Activity) for my emergency PWA website using Java or Kotlin. 
 
-The app MUST intercept physical hardware Volume Down presses in the background and when the lock screen is active to trigger the SOS, and MUST capture native Android high-accuracy hardware GPS locations and inject them directly into the Web PWA.
+The app MUST intercept physical hardware Volume Up + Volume Down keys pressed together in the background and when the lock screen is active to trigger the SOS instantly, and MUST capture native Android high-accuracy hardware GPS locations and inject them directly into the Web PWA.
 
 Specifically, implement these native capabilities in the Android Studio project:
 
@@ -24,16 +24,34 @@ Specifically, implement these native capabilities in the Android Studio project:
       </intent-filter>
   </receiver>
 
-2. KEY EVENT CAPTURE IN LOCK SCREEN:
-- Override `onKeyDown(int keyCode, KeyEvent event)` inside the main `MainActivity` to listen for Volume Down presses:
+2. SIMULTANEOUS KEY COMBINATION EVENT CAPTURE IN LOCK SCREEN:
+- Override `onKeyDown(int keyCode, KeyEvent event)` and `onKeyUp(int keyCode, KeyEvent event)` inside `MainActivity` to listen for Volume Up and Volume Down keys being pressed together:
+  private boolean isVolumeUpPressed = false;
+  private boolean isVolumeDownPressed = false;
+
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
-      if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-          // Send seek backward media button event to PWA WebView to trigger useVolumeButton hook
-          dispatchMediaButtonEvent(KeyEvent.KEYCODE_MEDIA_PREVIOUS);
+      if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+          isVolumeUpPressed = true;
+      } else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+          isVolumeDownPressed = true;
+      }
+
+      if (isVolumeUpPressed && isVolumeDownPressed) {
+          webView.post(() -> webView.evaluateJavascript("if(window.triggerSOSVolumeAlert){ window.triggerSOSVolumeAlert(); }", null));
           return true; // prevent standard system volume overlay
       }
       return super.onKeyDown(keyCode, event);
+  }
+
+  @Override
+  public boolean onKeyUp(int keyCode, KeyEvent event) {
+      if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+          isVolumeUpPressed = false;
+      } else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+          isVolumeDownPressed = false;
+      }
+      return super.onKeyUp(keyCode, event);
   }
 
 3. MEDIA SESSION IMPLEMENTATION:
@@ -95,6 +113,9 @@ public class MainActivity extends AppCompatActivity {
     private LocationCallback locationCallback;
     private static final int PERMISSION_REQUEST_CODE = 123;
 
+    private boolean isVolumeUpPressed = false;
+    private boolean isVolumeDownPressed = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -136,11 +157,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void injectGPSToWeb(Location location) {
-        // Stringify values safely to avoid local formatting discrepancies
         String js = String.format("if(window.updateNativeLocation){ window.updateNativeLocation(%f, %f, %f); }", 
                 location.getLatitude(), location.getLongitude(), (float)location.getAccuracy());
-        
-        // Push coordinate payloads to Web PWA instantly on the main thread
         webView.post(() -> webView.evaluateJavascript(js, null));
     }
 
@@ -176,11 +194,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Intercept physical Volume Down buttons to trigger Web PWA Emergency alarm hooks
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-            // Signal PWA to trigger its volume press actions
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            isVolumeUpPressed = true;
+        } else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            isVolumeDownPressed = true;
+        }
+
+        if (isVolumeUpPressed && isVolumeDownPressed) {
             webView.post(() -> webView.evaluateJavascript("if(window.triggerSOSVolumeAlert){ window.triggerSOSVolumeAlert(); }", null));
             return true; 
         }
@@ -188,9 +210,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            isVolumeUpPressed = false;
+        } else if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            isVolumeDownPressed = false;
+        }
+        return super.onKeyUp(keyCode, event);
+    }
+
+    @Override
     protected void onPause() {
         super.onPause();
-        // Keep updates running if needed in foreground, otherwise pause to save battery
         fusedLocationClient.removeLocationUpdates(locationCallback);
     }
 
