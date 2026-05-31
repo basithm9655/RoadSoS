@@ -2,7 +2,7 @@
 
 When you deploy this Web PWA link to **Vercel** and convert it into a native Android **APK**, you must ensure that hardware volume button clicks can trigger the background SOS alert correctly (even when the lock screen is active), and that the native Android hardware GPS is fetched and injected directly into the Web view!
 
-Here is the exact developer instructions prompt to feed into **Google AI Studio** or any Custom LLM / build tool when designing the wrapper/APK shell for your native Android wrapper app:
+Here is the exact developer instructions prompt and complete codebase to feed into **Google AI Studio** or any Custom LLM / build tool when designing the wrapper/APK shell for your native Android wrapper app:
 
 ---
 
@@ -64,6 +64,146 @@ Specifically, implement these native capabilities in the Android Studio project:
 
 ---
 
+### 💻 COMPLETE MainActivity.java SOURCE CODE FOR ANDROID STUDIO:
+
+You can copy and paste this complete Java file directly into your Android Studio project to establish both volume triggers and native GPS injection:
+
+```java
+package com.roadsos.app;
+
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.os.Bundle;
+import android.view.KeyEvent;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+
+public class MainActivity extends AppCompatActivity {
+
+    private WebView webView;
+    private FusedLocationProviderClient fusedLocationClient;
+    private LocationCallback locationCallback;
+    private static final int PERMISSION_REQUEST_CODE = 123;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        // Initialize WebView
+        webView = findViewById(R.id.webview);
+        WebSettings webSettings = webView.getSettings();
+        webSettings.setJavaScriptEnabled(true);
+        webSettings.setDomStorageEnabled(true);
+        webSettings.setGeolocationEnabled(true);
+        
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                startLocationUpdates(); // start pushing hardware GPS when page loads
+            }
+        });
+
+        // Load production URL (replace with your live Vercel link)
+        webView.loadUrl("https://roadsos.vercel.app");
+
+        // Initialize GPS client
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(@NonNull LocationResult locationResult) {
+                for (Location location : locationResult.getLocations()) {
+                    if (location != null) {
+                        injectGPSToWeb(location);
+                    }
+                }
+            }
+        };
+
+        checkPermissions();
+    }
+
+    private void injectGPSToWeb(Location location) {
+        // Stringify values safely to avoid local formatting discrepancies
+        String js = String.format("if(window.updateNativeLocation){ window.updateNativeLocation(%f, %f, %f); }", 
+                location.getLatitude(), location.getLongitude(), (float)location.getAccuracy());
+        
+        // Push coordinate payloads to Web PWA instantly on the main thread
+        webView.post(() -> webView.evaluateJavascript(js, null));
+    }
+
+    private void startLocationUpdates() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        LocationRequest locationRequest = LocationRequest.create()
+                .setInterval(5000)
+                .setFastestInterval(2000)
+                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+
+        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
+    }
+
+    private void checkPermissions() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, 
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 
+                    PERMISSION_REQUEST_CODE);
+        } else {
+            startLocationUpdates();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startLocationUpdates();
+            }
+        }
+    }
+
+    // Intercept physical Volume Down buttons to trigger Web PWA Emergency alarm hooks
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
+            // Signal PWA to trigger its volume press actions
+            webView.post(() -> webView.evaluateJavascript("if(window.triggerSOSVolumeAlert){ window.triggerSOSVolumeAlert(); }", null));
+            return true; 
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Keep updates running if needed in foreground, otherwise pause to save battery
+        fusedLocationClient.removeLocationUpdates(locationCallback);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        startLocationUpdates();
+    }
+}
+```
+
+---
+
 ### 🚀 HOW TO DEPLOY TO VERCEL IN 1 MINUTE:
 
 1. Install Vercel CLI globally:
@@ -79,7 +219,3 @@ Specifically, implement these native capabilities in the Android Studio project:
    vercel --prod
    ```
    *Follow the command line prompts: select "Yes" to link, default options for settings, and your web app will be live on a custom `.vercel.app` URL in seconds!*
-
-4. Ensure your Vercel deployment has your API keys set in the project Dashboard Environment Variables:
-   - `VITE_ANTHROPIC_API_KEY`: *[Your Anthropic Claude API Key]*
-   - `VITE_COMMUNITY_SHEET_URL`: *[Your Published Volunteer Google Sheets CSV URL]*
