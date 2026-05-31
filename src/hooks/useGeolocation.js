@@ -95,6 +95,22 @@ export function useGeolocation() {
       },
       (err) => {
         console.warn(`[Geolocation] Fast network location query failed: ${err.message}`);
+        // Fused IP-based geolocation fallback if browser network query fails (extremely reliable, requires no GPS permission)
+        fetch('https://ipapi.co/json/')
+          .then(res => res.json())
+          .then(ipData => {
+            if (ipData.latitude && ipData.longitude) {
+              handleResolvedLocation({
+                coords: {
+                  latitude: ipData.latitude,
+                  longitude: ipData.longitude,
+                  accuracy: 5000 // Approximate IP/Cell tower accuracy
+                },
+                timestamp: Date.now()
+              }, 'Cell Tower/IP Fallback');
+            }
+          })
+          .catch(ipErr => console.warn('[Geolocation] Fused IP fallback query failed:', ipErr));
       },
       towerOptions
     );
