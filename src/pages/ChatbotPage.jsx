@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import ChatMessage, { TypingIndicator } from '../components/ChatMessage';
 import { useToast } from '../context/ToastContext';
 
-// Claude Prompt & Presets
+// Gemini AI Prompt & Presets
 const SYSTEM_PROMPT = `You are RoadSOS First Aid Assistant — an emergency first aid guidance AI. 
 Your role: Help users with step-by-step first aid instructions during road accidents and emergencies.
 Rules:
@@ -112,14 +112,13 @@ export default function ChatbotPage() {
     }
   }
 
-  // AI Send Handler
+  // AI Send Handler — Gemini API
   async function sendMessage(text) {
     if (!text.trim()) return;
-    
-    // Retrieve key from Vite .env environment variables first, fallback to local storage
-    const key = import.meta.env.VITE_ANTHROPIC_API_KEY || localStorage.getItem('roadsos_ai_key');
+
+    const key = import.meta.env.VITE_GEMINI_API_KEY;
     if (!key) {
-      showToast('⚠️ AI service configured improperly (missing API key in configuration)', 'error');
+      showToast('⚠️ Gemini API key not configured', 'error');
       return;
     }
 
@@ -130,40 +129,44 @@ export default function ChatbotPage() {
     setTyping(true);
 
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
-          max_tokens: 1024,
-          system: SYSTEM_PROMPT,
-          messages: newMessages.filter(m => m.role !== 'system').map(m => ({
-            role: m.role, content: m.content
-          })),
-        }),
-      });
+      // Build Gemini conversation history format
+      const contents = newMessages.map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }],
+      }));
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents,
+            generationConfig: { maxOutputTokens: 1024, temperature: 0.4 },
+          }),
+        }
+      );
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error?.message || `API error ${res.status}`);
+        throw new Error(err.error?.message || `Gemini API error ${res.status}`);
       }
 
       const data = await res.json();
-      const aiContent = data.content?.[0]?.text || 'I could not generate a response. Please call 108.';
+      const aiContent =
+        data.candidates?.[0]?.content?.parts?.[0]?.text ||
+        'Could not generate a response. Please call 108.';
+
       setMessages(prev => [...prev, { role: 'assistant', content: aiContent, timestamp: Date.now() }]);
     } catch (err) {
-      console.error('Chatbot error:', err);
+      console.error('Gemini chatbot error:', err);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: `⚠️ Error: ${err.message}\n\n**Please call 108 immediately for professional emergency help.**`,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       }]);
-      showToast('AI error — please call 108 for help', 'error');
+      showToast('AI error — call 108 for help', 'error');
     } finally {
       setTyping(false);
     }
