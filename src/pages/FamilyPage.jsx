@@ -59,9 +59,14 @@ export default function FamilyPage() {
 
     showToast('⏳ Dispatching test email alerts...', 'info', 2000);
 
-    const apiHost = window.location.origin.startsWith('http') && !window.location.origin.includes('localhost:51')
-      ? window.location.origin
-      : 'https://roadsos.vercel.app';
+    const isLocalHost = window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1' || 
+                        window.location.hostname.startsWith('10.') || 
+                        window.location.hostname.startsWith('192.168.') || 
+                        window.location.hostname.startsWith('172.') || 
+                        window.location.origin.startsWith('file://');
+
+    const apiHost = isLocalHost ? 'https://roadsos.vercel.app' : window.location.origin;
 
     fetch(`${apiHost}/api/send-sms`, {
       method: 'POST',
