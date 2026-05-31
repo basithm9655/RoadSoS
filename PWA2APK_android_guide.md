@@ -1,6 +1,6 @@
-# 📱 Native Android APK Conversion Guide for RoadSOS
+# 📱 Native Android APK Conversion Guide for RoadSOS (With Native GPS Injection)
 
-When you deploy this Web PWA link to **Vercel** and convert it into a native Android **APK**, you must ensure that hardware volume button clicks can trigger the background SOS alert correctly (even when the lock screen is active).
+When you deploy this Web PWA link to **Vercel** and convert it into a native Android **APK**, you must ensure that hardware volume button clicks can trigger the background SOS alert correctly (even when the lock screen is active), and that the native Android hardware GPS is fetched and injected directly into the Web view!
 
 Here is the exact developer instructions prompt to feed into **Google AI Studio** or any Custom LLM / build tool when designing the wrapper/APK shell for your native Android wrapper app:
 
@@ -11,7 +11,7 @@ Here is the exact developer instructions prompt to feed into **Google AI Studio*
 ```text
 Please build a premium native Android wrapper (TWA / WebView Activity) for my emergency PWA website using Java or Kotlin. 
 
-The app MUST intercept physical hardware Volume Down presses in the background and when the lock screen is active to send a simulated media event so the Web PWA can trigger a silent SOS.
+The app MUST intercept physical hardware Volume Down presses in the background and when the lock screen is active to trigger the SOS, and MUST capture native Android high-accuracy hardware GPS locations and inject them directly into the Web PWA.
 
 Specifically, implement these native capabilities in the Android Studio project:
 
@@ -41,12 +41,24 @@ Specifically, implement these native capabilities in the Android Studio project:
   MediaSessionCompat mediaSession = new MediaSessionCompat(context, "RoadSOSMediaSession");
   mediaSession.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
   mediaSession.setActive(true);
-- Set up state playback so volume buttons map to `seekbackward` or `previoustrack` trigger signals inside the HTML5 Media Session API inside the PWA WebView.
 
-4. REQUIRED PERMISSIONS (AndroidManifest.xml):
+4. NATIVE HIGH-ACCURACY HARDWARE GPS CAPTURE:
+- Use `FusedLocationProviderClient` from Google Play Services Location API to request high-precision hardware location coordinates (GPS + Cell Tower).
+- Define a background location update listener:
+  LocationRequest locationRequest = LocationRequest.create()
+          .setInterval(5000)
+          .setFastestInterval(2000)
+          .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+- Every time a new location coordinate is captured, inject it dynamically into the web page by executing JavaScript on the WebView:
+  String jsCode = String.format("if(window.updateNativeLocation){ window.updateNativeLocation(%f, %f, %f); }", 
+          location.getLatitude(), location.getLongitude(), location.getAccuracy());
+  webView.post(() -> webView.evaluateJavascript(jsCode, null));
+
+5. REQUIRED PERMISSIONS (AndroidManifest.xml):
 - <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 - <uses-permission android:name="android.permission.WAKE_LOCK" />
 - <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+- <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 - <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 ```
 

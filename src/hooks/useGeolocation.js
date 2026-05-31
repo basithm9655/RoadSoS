@@ -141,6 +141,23 @@ export function useGeolocation() {
     updatePermissionStatus();
     getLocation();
 
+    // Listen for high-precision native GPS coordinates pushed directly by the Android wrapper APK
+    window.updateNativeLocation = (lat, lon, accuracy = 10) => {
+      console.log(`[Native Android GPS] Received coordinates: ${lat}, ${lon} (Accuracy: ${accuracy}m)`);
+      const loc = {
+        lat: parseFloat(lat),
+        lon: parseFloat(lon),
+        accuracy: parseFloat(accuracy),
+        timestamp: Date.now()
+      };
+      setLocation(loc);
+      setLoading(false);
+      setPermission('granted');
+      setError(null);
+      localStorage.setItem('roadsos_last_location', JSON.stringify(loc));
+      localStorage.setItem('roadsos_last_loc', JSON.stringify({ lat: loc.lat, lon: loc.lon }));
+    };
+
     if (!navigator.geolocation) return;
 
     // Use phone-resilient watch settings
@@ -167,7 +184,10 @@ export function useGeolocation() {
       { enableHighAccuracy: false, maximumAge: 15000, timeout: 20000 }
     );
 
-    return () => navigator.geolocation.clearWatch(watchId);
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      delete window.updateNativeLocation;
+    };
   }, [getLocation, updatePermissionStatus]);
 
   return { location, error, loading, permission, refetch: getLocation };
