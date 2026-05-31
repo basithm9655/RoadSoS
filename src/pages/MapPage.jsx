@@ -12,7 +12,18 @@ export default function MapPage() {
   const { location: liveLocation, loading: locLoading } = useGeolocation();
   const { t } = useLang();
   const [facilities, setFacilities] = useState([]);
-  const [location, setLocation] = useState({ lat: 12.9915, lon: 80.2336 });
+  const [location, setLocation] = useState(() => {
+    const cached = localStorage.getItem('roadsos_last_loc');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lon === 'number') {
+          return parsed;
+        }
+      } catch (_) {}
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(false);
   const [netStatus, setNetStatus] = useState('idle'); // idle | connecting | success | offline | busy
   const [filter, setFilter] = useState('all');
@@ -42,18 +53,18 @@ export default function MapPage() {
     }
   }, []);
 
-  // 2a. Fetch on first mount with whatever location we have (IIT Madras default or real GPS)
+  // 2a. Fetch on first mount with whatever location we have (cached GPS)
   useEffect(() => {
-    if (!hasFetchedRef.current) {
+    if (location && !hasFetchedRef.current) {
       hasFetchedRef.current = true;
       loadFacilities(location, false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 2b. Re-fetch automatically when REAL GPS lock arrives (not the IIT Madras fallback)
+  // 2b. Re-fetch automatically when REAL GPS lock arrives
   useEffect(() => {
-    if (liveLocation && !liveLocation.isFallback && !hasRealGPSRef.current) {
+    if (liveLocation && !hasRealGPSRef.current) {
       hasRealGPSRef.current = true;
       setLocation(liveLocation);
       localStorage.setItem('roadsos_last_loc', JSON.stringify(liveLocation));
@@ -128,7 +139,13 @@ export default function MapPage() {
       </div>
 
       <div className="map-container">
-        {facilities.length === 0 && loading ? (
+        {!location ? (
+          <div className="gps-lock-radar">
+            <div className="radar-ping" />
+            <div className="radar-sonar" />
+            <p className="radar-text">📡 {t('mapAcquiring')}</p>
+          </div>
+        ) : facilities.length === 0 && loading ? (
           <div className="map-skeleton">
             <div className="skeleton-pulse" style={{ height: '100%' }} />
           </div>

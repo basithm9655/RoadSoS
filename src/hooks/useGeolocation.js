@@ -1,28 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// Sentinel value that marks "IIT Madras fallback, not a real GPS fix"
-const FALLBACK_ACCURACY = 9999;
-const FALLBACK = { lat: 12.9915, lon: 80.2336, accuracy: FALLBACK_ACCURACY, isFallback: true };
-
 const getInitialLocation = () => {
   const cached = localStorage.getItem('roadsos_last_location');
   if (cached) {
     try {
       const parsed = JSON.parse(cached);
       if (parsed && typeof parsed.lat === 'number' && typeof parsed.lon === 'number') {
-        // Return cached location as active right away so map has immediate coordinates
+        // Return cached location as active right away
         return { ...parsed, isFallback: false };
       }
     } catch (_) {}
   }
-  return FALLBACK;
+  return null; // No fallback coordinates at all
 };
 
 /**
  * Robust phone-resilient geolocation hook.
- * - Instantly initializes with the last cached location or the IIT Madras default.
+ * - Instantly initializes with the last cached location or null (no fake fallbacks).
  * - Fires multiple concurrent geolocation requests.
- * - Updates fluidly whenever a highly precise GPS fix or a native APK injection is received.
+ * - Updates fluidly whenever a precise GPS fix or a native APK injection is received.
  */
 export function useGeolocation() {
   const [location, setLocation] = useState(getInitialLocation);
@@ -54,8 +50,8 @@ export function useGeolocation() {
     const loc = { lat, lon, accuracy, timestamp: Date.now(), isFallback: false };
 
     setLocation((current) => {
-      // 1. If currently showing the fallback, always upgrade to a real GPS position
-      if (current.isFallback) {
+      // 1. If currently null, always set to the new coordinate
+      if (!current) {
         return loc;
       }
 
@@ -123,7 +119,9 @@ export function useGeolocation() {
         setLoading(false);
         if (err.code === 1) {
           setPermission('denied');
-          setError('⚠️ Location permission denied. Showing last known or fallback location.');
+          setError('⚠️ Location permission denied. Please enable location services to use RoadSOS emergency features.');
+        } else {
+          setError('⚠️ Awaiting GPS satellite lock. Please stand by or move to an open area.');
         }
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }

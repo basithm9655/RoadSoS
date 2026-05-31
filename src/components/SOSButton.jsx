@@ -45,8 +45,9 @@ export default function SOSButton() {
     setPhase('triggered');
     playAlertSound();
 
-    const lat = location?.lat || 12.9915;
-    const lon = location?.lon || 80.2336;
+    const cachedLoc = JSON.parse(localStorage.getItem('roadsos_last_location') || 'null');
+    const lat = location?.lat || cachedLoc?.lat || null;
+    const lon = location?.lon || cachedLoc?.lon || null;
     const userName = localStorage.getItem('roadsos_user_name') || 'Unknown User';
 
     if (!isOnline) {
@@ -58,7 +59,7 @@ export default function SOSButton() {
     try {
       // 1. Load contacts & generate maps link
       const familyContacts = JSON.parse(localStorage.getItem('roadsos_family_contacts') || '[]');
-      const mapsLink = `https://maps.google.com/?q=${lat},${lon}`;
+      const mapsLink = (lat && lon) ? `https://maps.google.com/?q=${lat},${lon}` : 'Location pending GPS lock';
       const timeStr = new Date().toLocaleTimeString();
 
       // 2. Dispatch backend SMS/email securely via our Vercel Serverless Function
