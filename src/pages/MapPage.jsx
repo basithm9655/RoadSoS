@@ -53,7 +53,11 @@ export default function MapPage() {
       localStorage.setItem('roadsos_facilities', JSON.stringify(sorted));
     } catch (e) {
       console.warn('MapPage network error loading facilities:', e);
-      setError('📡 Offline mode — showing cached facilities.');
+      if (!navigator.onLine) {
+        setError('📡 Offline mode — showing cached facilities.');
+      } else {
+        setError('⚠️ Emergency server busy (slow response) — showing cached facilities.');
+      }
     } finally {
       setLoading(false);
     }

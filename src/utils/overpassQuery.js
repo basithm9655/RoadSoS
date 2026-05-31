@@ -1,5 +1,13 @@
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_MIRRORS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+];
 
+/**
+ * Robust fetch for nearby facilities with multi-mirror automatic fallback.
+ * Bypasses Overpass server rate limits and outages.
+ */
 export async function queryNearbyFacilities(lat, lon, radius = 5000) {
   const query = `
     [out:json][timeout:25];
@@ -13,26 +21,55 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
     out body;
   `;
 
-  const res = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `data=${encodeURIComponent(query)}`
-  });
+  let lastError = null;
 
-  if (!res.ok) throw new Error('Overpass API error');
-  const data = await res.json();
+  // Try each mirror sequentially until one succeeds
+  for (const mirrorUrl of OVERPASS_MIRRORS) {
+    try {
+      console.log(`Querying facilities from Overpass mirror: ${mirrorUrl}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 second limit per mirror
 
-  return data.elements.map(el => ({
-    id: el.id,
-    type: el.tags?.amenity || 'unknown',
-    name: el.tags?.name || el.tags?.['name:en'] || getFacilityDefault(el.tags?.amenity),
-    lat: el.lat,
-    lon: el.lon,
-    phone: el.tags?.phone || el.tags?.['contact:phone'] || null,
-    website: el.tags?.website || null,
-    opening_hours: el.tags?.opening_hours || null,
-    address: buildAddress(el.tags),
-  }));
+      const res = await fetch(mirrorUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        throw new Error(`Server returned status ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (!data.elements) {
+        throw new Error('Malformed API response');
+      }
+
+      console.log(`Overpass mirror ${mirrorUrl} successfully loaded ${data.elements.length} facilities.`);
+
+      return data.elements.map(el => ({
+        id: el.id,
+        type: el.tags?.amenity || 'unknown',
+        name: el.tags?.name || el.tags?.['name:en'] || getFacilityDefault(el.tags?.amenity),
+        lat: el.lat,
+        lon: el.lon,
+        phone: el.tags?.phone || el.tags?.['contact:phone'] || null,
+        website: el.tags?.website || null,
+        opening_hours: el.tags?.opening_hours || null,
+        address: buildAddress(el.tags),
+      }));
+    } catch (e) {
+      console.warn(`Overpass mirror ${mirrorUrl} failed:`, e.message || e);
+      lastError = e;
+    }
+  }
+
+  // If all mirrors failed, throw the final error
+  throw lastError || new Error('All Overpass API mirrors are currently unreachable');
 }
 
 function getFacilityDefault(amenity) {
