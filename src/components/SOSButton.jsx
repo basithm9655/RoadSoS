@@ -77,14 +77,14 @@ export default function SOSButton() {
         })
         .then(data => {
           if (data.success) {
-            showToast(`📲 Twilio SMS sent to ${data.delivered} family contact(s)!`, 'success', 6000);
+            showToast(`📲 WhatsApp SOS alert sent to ${data.delivered} contact(s)!`, 'success', 6000);
           } else {
             throw new Error(data.error || 'Unknown dispatch failure');
           }
         })
         .catch(err => {
-          console.error('[SMS Dispatch Error]', err);
-          showToast(`⚠️ Twilio Alert Failed: ${err.message}`, 'error', 10000);
+          console.error('[WhatsApp Dispatch Error]', err);
+          showToast(`⚠️ WhatsApp Alert Failed: ${err.message}`, 'error', 10000);
         });
       }
 

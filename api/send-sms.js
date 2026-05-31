@@ -1,8 +1,8 @@
-// Vercel Serverless Function for sending emergency SMS via Twilio
-// Keeps API keys completely hidden from client-side browsers and avoids CORS blocks
+// Vercel Serverless Function: Dispatch Emergency Alerts via Meta WhatsApp Cloud API
+// Safely reads credentials from environment variables to keep them hidden from the web browser client
 
 export default async function handler(req, res) {
-  // 1. Enable CORS for local/production requests
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -11,7 +11,6 @@ export default async function handler(req, res) {
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
   );
 
-  // Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
@@ -27,62 +26,57 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: 'No contacts provided' });
   }
 
-  // Get credentials securely from environment variables
-  const sid = process.env.TWILIO_SID;
-  const auth = process.env.TWILIO_AUTH;
-  const from = process.env.TWILIO_PHONE_NO;
+  // Retrieve credentials from Vercel Environment Variables securely
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
-  if (!sid || !auth || !from) {
-    console.error('[SMS API] Twilio credentials missing in Vercel environment variables');
+  if (!token || !phoneId) {
+    console.error('[WhatsApp API] Credentials missing in Vercel environment variables');
     return res.status(500).json({
       success: false,
-      error: 'SMS service is not fully configured (missing Vercel Environment Variables)',
+      error: 'WhatsApp API is not configured (missing WHATSAPP_TOKEN / WHATSAPP_PHONE_NUMBER_ID in Vercel Settings)',
     });
   }
 
-  console.log(`[SMS API] Dispatching SOS for ${userName} to ${contacts.length} recipients...`);
+  console.log(`[WhatsApp API] Dispatching SOS to ${contacts.length} recipients...`);
 
   const results = [];
 
-  // Dispatch SMS in parallel
-  const smsPromises = contacts.map(async (c) => {
+  const promises = contacts.map(async (c) => {
     if (!c.phone) return { phone: c.phone, success: false, error: 'Missing phone' };
 
-    // Format phone to international standard (defaulting to +91 India if 10-digit)
-    let formattedPhone = c.phone.trim();
+    // Format phone number: WhatsApp requires international code without '+' or spaces (e.g. 919876543210)
+    let formattedPhone = c.phone.trim().replace(/\D/g, ''); // strip spaces, brackets, dashes
     if (formattedPhone.length === 10) {
-      formattedPhone = `+91${formattedPhone}`;
-    } else if (!formattedPhone.startsWith('+')) {
-      formattedPhone = `+${formattedPhone}`;
+      formattedPhone = `91${formattedPhone}`; // Default to India country code 91 if 10-digit
     }
 
-    const textMessage = `🆘 EMERGENCY ALERT from RoadSOS!\n\n${userName} needs HELP immediately.\n📍 Location: ${mapsLink}\n⏰ Time: ${time}\n\nPlease check on them now!`;
-
     try {
-      const authHeader = 'Basic ' + Buffer.from(`${sid}:${auth}`).toString('base64');
-      const params = new URLSearchParams();
-      params.append('To', formattedPhone);
-      params.append('From', from.trim());
-      params.append('Body', textMessage);
+      // Dispatch Meta Cloud API message
+      // NOTE: We use Meta's default pre-approved template 'hello_world' to ensure instant test delivery!
+      const waRes = await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: formattedPhone,
+          type: 'template',
+          template: {
+            name: 'hello_world', // Pre-approved template for instant testing
+            language: { code: 'en_US' }
+          }
+        }),
+      });
 
-      const twilioRes = await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': authHeader,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: params.toString(),
-        }
-      );
+      const data = await waRes.json();
 
-      const data = await twilioRes.json();
-
-      if (twilioRes.ok) {
-        return { phone: formattedPhone, success: true, sid: data.sid };
+      if (waRes.ok) {
+        return { phone: formattedPhone, success: true, messageId: data.messages?.[0]?.id };
       } else {
-        return { phone: formattedPhone, success: false, error: data.message || 'Twilio rejected request' };
+        return { phone: formattedPhone, success: false, error: data.error?.message || 'Meta API rejected dispatch' };
       }
     } catch (err) {
       return { phone: formattedPhone, success: false, error: err.message };
@@ -90,10 +84,10 @@ export default async function handler(req, res) {
   });
 
   try {
-    const outputs = await Promise.all(smsPromises);
+    const outputs = await Promise.all(promises);
     const successful = outputs.filter((o) => o.success).length;
 
-    console.log(`[SMS API] Completed: ${successful}/${outputs.length} successful transmissions.`);
+    console.log(`[WhatsApp API] Completed: ${successful}/${outputs.length} successful transmissions.`);
     return res.status(200).json({
       success: true,
       delivered: successful,

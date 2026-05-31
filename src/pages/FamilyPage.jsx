@@ -84,14 +84,14 @@ export default function FamilyPage() {
     })
     .then(data => {
       if (data.success) {
-        showToast(`📲 Twilio Test SMS successfully sent to ${data.delivered} contact(s)!`, 'success', 6000);
+        showToast(`📲 WhatsApp Test Alert successfully sent to ${data.delivered} contact(s)!`, 'success', 6000);
       } else {
         throw new Error(data.error || 'Test dispatch rejected');
       }
     })
     .catch(err => {
-      console.error('[Test SMS Error]', err);
-      showToast(`⚠️ Twilio Setup Error: ${err.message}`, 'error', 12000);
+      console.error('[Test WhatsApp Error]', err);
+      showToast(`⚠️ WhatsApp Setup Error: ${err.message}`, 'error', 12000);
     });
 
     // 2. Open WhatsApp as backup
