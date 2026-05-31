@@ -80,9 +80,4 @@ graph TD
 *   **Description:** Create direct API endpoints into local government and State 108 Ambulance Dispatch Command Centers.
 *   **Implementation:** Bypasses manual reporting steps by directly pushing the telemetry log and location coordinates onto the State emergency dispatch dashboard for high-speed routing.
 
----
 
-## 🏆 7. Hackathon Submission Credentials
-*   **Local Repository Path:** `/home/basi/Downloads/RoadSOS/`
-*   **GitHub Remote Repository:** `https://github.com/basithm9655/RoadSoS.git`
-*   **Deployment Status:** Clean Vite 8 React 19 production build certified (`dist/sw.js` live).
