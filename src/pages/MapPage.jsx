@@ -51,9 +51,9 @@ export default function MapPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 2b. Re-fetch automatically when REAL GPS lock arrives (accuracy < 100m = not the IIT Madras fallback)
+  // 2b. Re-fetch automatically when REAL GPS lock arrives (not the IIT Madras fallback)
   useEffect(() => {
-    if (liveLocation && liveLocation.accuracy < 100 && !hasRealGPSRef.current) {
+    if (liveLocation && !liveLocation.isFallback && !hasRealGPSRef.current) {
       hasRealGPSRef.current = true;
       setLocation(liveLocation);
       localStorage.setItem('roadsos_last_loc', JSON.stringify(liveLocation));
