@@ -53,8 +53,8 @@ export default function FamilyPage() {
 
   function sendTestAlert() {
     if (contacts.length === 0) { showToast('Add contacts first', 'warning'); return; }
-    const location = JSON.parse(localStorage.getItem('roadsos_last_location') || 'null');
-    const mapsLink = location ? `https://maps.google.com/?q=${location.lat},${location.lon}` : 'Location details pending live GPS lock';
+    const location = JSON.parse(localStorage.getItem('roadsos_last_location') || '{"lat": 12.9915, "lon": 80.2336}');
+    const mapsLink = `https://maps.google.com/?q=${location.lat},${location.lon}`;
     const timeStr = new Date().toLocaleTimeString();
 
     showToast('⏳ Dispatching test email alerts...', 'info', 2000);

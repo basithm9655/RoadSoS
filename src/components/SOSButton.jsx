@@ -4,7 +4,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { useVolumeButton } from '../hooks/useVolumeButton';
 import { useToast } from '../context/ToastContext';
-import { haversine, formatDistance } from '../utils/haversine';
+
 import { QUICK_CALLS } from '../utils/emergencyNumbers';
 
 const CONFIRM_TIMEOUT = 4000; // ms to reset after first tap
@@ -22,12 +22,31 @@ export default function SOSButton() {
   // Cleanup on unmount
   useEffect(() => () => clearTimeout(confirmTimer.current), []);
 
+  function playAlertSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const playBeep = (freq, start, dur) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'sawtooth';
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + start);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+        osc.start(ctx.currentTime + start);
+        osc.stop(ctx.currentTime + start + dur + 0.05);
+      };
+      for (let i = 0; i < 5; i++) playBeep(880, i * 0.3, 0.2);
+    } catch (_) {}
+  }
+
   const triggerSOS = useCallback(async () => {
     setPhase('triggered');
     playAlertSound();
 
-    const lat = location?.lat || 0;
-    const lon = location?.lon || 0;
+    const lat = location?.lat || 12.9915;
+    const lon = location?.lon || 80.2336;
     const userName = localStorage.getItem('roadsos_user_name') || 'Unknown User';
 
     if (!isOnline) {
@@ -113,7 +132,6 @@ export default function SOSButton() {
   const resetSOS = useCallback(() => {
     setPhase('idle');
     setResponderCount(0);
-    setSosEventId(null);
     if (pulseAudio.current) {
       pulseAudio.current.pause();
       pulseAudio.current = null;
@@ -122,25 +140,6 @@ export default function SOSButton() {
 
   // Volume button trigger
   useVolumeButton(triggerSOS, true);
-
-  function playAlertSound() {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const playBeep = (freq, start, dur) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = freq;
-        osc.type = 'sawtooth';
-        gain.gain.setValueAtTime(0.3, ctx.currentTime + start);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
-        osc.start(ctx.currentTime + start);
-        osc.stop(ctx.currentTime + start + dur + 0.05);
-      };
-      for (let i = 0; i < 5; i++) playBeep(880, i * 0.3, 0.2);
-    } catch (_) {}
-  }
 
   const buttonStyles = {
     idle: {

@@ -40,8 +40,8 @@ export default function MapView({ userLocation, facilities }) {
   // Initialize Map with clean dark theme
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
-    const defaultLat = userLocation?.lat || 11.0168;
-    const defaultLon = userLocation?.lon || 76.9558;
+    const defaultLat = userLocation?.lat || 12.9915;
+    const defaultLon = userLocation?.lon || 80.2336;
 
     mapInstanceRef.current = L.map(mapRef.current, {
       zoomControl: true,

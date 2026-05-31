@@ -1,14 +1,17 @@
 import { NavLink } from 'react-router-dom';
-
-const NAV_ITEMS = [
-  { path: '/', label: 'Home', icon: '🏠' },
-  { path: '/map', label: 'Map', icon: '🗺' },
-  { path: '/numbers', label: 'Numbers', icon: '📞' },
-  { path: '/chatbot', label: 'First Aid', icon: '🩺' },
-  { path: '/more', label: 'More', icon: '☰' },
-];
+import { useLang } from '../context/LanguageContext';
 
 export default function BottomNav() {
+  const { t } = useLang();
+
+  const NAV_ITEMS = [
+    { path: '/', label: t('navHome'), icon: '🏠' },
+    { path: '/map', label: t('navMap'), icon: '🗺' },
+    { path: '/numbers', label: t('navNumbers'), icon: '📞' },
+    { path: '/chatbot', label: t('navFirstAid'), icon: '🩺' },
+    { path: '/more', label: t('navMore'), icon: '☰' },
+  ];
+
   return (
     <nav className="bottom-nav" role="navigation" aria-label="Main navigation">
       {NAV_ITEMS.map(item => (

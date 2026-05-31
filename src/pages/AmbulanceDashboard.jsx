@@ -32,11 +32,11 @@ export default function AmbulanceDashboard() {
       // Demo SOS events when Firebase isn't configured
       setSosEvents([
         {
-          id: 'demo-1', userName: 'Rajan Kumar', lat: 11.0168, lon: 76.9558,
+          id: 'demo-1', userName: 'Rajan Kumar', lat: 12.9915, lon: 80.2336,
           timestamp: { seconds: Math.floor(Date.now() / 1000) - 120 }, status: 'pending'
         },
         {
-          id: 'demo-2', userName: 'Priya S', lat: 11.0200, lon: 76.9600,
+          id: 'demo-2', userName: 'Priya S', lat: 13.0067, lon: 80.2206,
           timestamp: { seconds: Math.floor(Date.now() / 1000) - 45 }, status: 'pending'
         },
       ]);

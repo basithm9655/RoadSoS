@@ -39,7 +39,7 @@ export default function FamilyAlarm({ contacts = [], onDismiss, userName = 'Some
     };
   }, []);
 
-  const location = JSON.parse(localStorage.getItem('roadsos_last_location') || 'null');
+  const location = JSON.parse(localStorage.getItem('roadsos_last_location') || '{"lat": 12.9915, "lon": 80.2336}');
   const mapsLink = location ? `https://maps.google.com/?q=${location.lat},${location.lon}` : null;
 
   return (

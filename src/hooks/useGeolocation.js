@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 
 /**
  * Robust phone-resilient hook for geolocation.
- * Includes auto-fallback to low accuracy (WiFi/Cell) if High Accuracy GPS times out.
+ * Directly falls back to IIT Madras, Chennai if location cannot be acquired.
  */
 export function useGeolocation() {
-  const [location, setLocation] = useState(null);
+  const [location, setLocation] = useState({ lat: 12.9915, lon: 80.2336, accuracy: 100, timestamp: Date.now() });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [permission, setPermission] = useState('prompt'); // prompt | granted | denied
@@ -28,8 +28,7 @@ export function useGeolocation() {
     if (!navigator.geolocation) {
       setError('Geolocation not supported by this browser');
       setLoading(false);
-      const cached = localStorage.getItem('roadsos_last_location');
-      if (cached) setLocation(JSON.parse(cached));
+      setLocation({ lat: 12.9915, lon: 80.2336, accuracy: 100, timestamp: Date.now() });
       return;
     }
 
@@ -37,8 +36,7 @@ export function useGeolocation() {
     if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       setError('🔒 Location blocked on insecure HTTP. Please deploy to HTTPS (Vercel) to authorize GPS permissions.');
       setLoading(false);
-      const cached = localStorage.getItem('roadsos_last_location');
-      if (cached) setLocation(JSON.parse(cached));
+      setLocation({ lat: 12.9915, lon: 80.2336, accuracy: 100, timestamp: Date.now() });
       return;
     }
 
@@ -71,7 +69,7 @@ export function useGeolocation() {
       
       // Update location immediately if we haven't locked onto a more accurate source yet
       setLocation((current) => {
-        if (current && current.accuracy <= loc.accuracy) {
+        if (current && current.accuracy <= loc.accuracy && current.lat !== 12.9915) {
           // Keep the existing location if it has better or equal accuracy
           return current;
         }
@@ -82,7 +80,7 @@ export function useGeolocation() {
       setPermission('granted');
       setError(null);
 
-      // Store in caches
+      // Store in caches for other pages
       localStorage.setItem('roadsos_last_location', JSON.stringify(loc));
       localStorage.setItem('roadsos_last_loc', JSON.stringify({ lat: loc.lat, lon: loc.lon }));
       locationResolved = true;
@@ -95,22 +93,7 @@ export function useGeolocation() {
       },
       (err) => {
         console.warn(`[Geolocation] Fast network location query failed: ${err.message}`);
-        // Fused IP-based geolocation fallback if browser network query fails (extremely reliable, requires no GPS permission)
-        fetch('https://ipapi.co/json/')
-          .then(res => res.json())
-          .then(ipData => {
-            if (ipData.latitude && ipData.longitude) {
-              handleResolvedLocation({
-                coords: {
-                  latitude: ipData.latitude,
-                  longitude: ipData.longitude,
-                  accuracy: 5000 // Approximate IP/Cell tower accuracy
-                },
-                timestamp: Date.now()
-              }, 'Cell Tower/IP Fallback');
-            }
-          })
-          .catch(ipErr => console.warn('[Geolocation] Fused IP fallback query failed:', ipErr));
+        // No IP geolocator fallback to prevent showing wrong cities, only use real GPS or IIT Madras fallback
       },
       towerOptions
     );
@@ -122,15 +105,14 @@ export function useGeolocation() {
       },
       (err) => {
         console.warn(`[Geolocation] High-accuracy GPS query failed: ${err.message}`);
-        // If we haven't resolved any location from network either, report the error and read from cache
+        // If we haven't resolved any location from network either, report the error and default to IIT Madras
         if (!locationResolved) {
           setError(err.message || 'Could not resolve location coordinates');
           setLoading(false);
           if (err.code === err.PERMISSION_DENIED) {
             setPermission('denied');
           }
-          const cached = localStorage.getItem('roadsos_last_location');
-          if (cached) setLocation(JSON.parse(cached));
+          setLocation({ lat: 12.9915, lon: 80.2336, accuracy: 100, timestamp: Date.now() });
         }
       },
       gpsOptions

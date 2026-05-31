@@ -1,21 +1,24 @@
 const OVERPASS_MIRRORS = [
   'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+  'https://overpass.osm.ch/api/interpreter',
+  'https://overpass.nchc.org.tw/api/interpreter',
+  'https://overpass.openstreetmap.fr/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter',
+  'https://z.overpass-api.de/api/interpreter'
 ];
 
 /**
- * PARALLEL RACE strategy — all 3 mirrors queried simultaneously.
+ * PARALLEL RACE strategy — all 6 mirrors queried simultaneously.
  * Whichever responds first wins. Dramatically faster than sequential fallback.
  * Uses GET requests to avoid CORS preflight blocks on mobile/WebView.
  */
 export async function queryNearbyFacilities(lat, lon, radius = 5000) {
-  const query = `[out:json][timeout:20];(node["amenity"="hospital"](around:${radius},${lat},${lon});node["amenity"="clinic"](around:${radius},${lat},${lon});node["amenity"="police"](around:${radius},${lat},${lon});node["amenity"="fire_station"](around:${radius},${lat},${lon});node["amenity"="pharmacy"](around:${radius},${lat},${lon}););out body;`;
+  const query = `[out:json][timeout:20];(node["amenity"="hospital"](around:${radius},${lat},${lon});node["amenity"="clinic"](around:${radius},${lat},${lon});node["amenity"="police"](around:${radius},${lat},${lon});node["amenity"="fire_station"](around:${radius},${lat},${lon});node["amenity"="pharmacy"](around:${radius},${lat},${lon});node["shop"="car_repair"](around:${radius},${lat},${lon});node["emergency"="roadside_assistance"](around:${radius},${lat},${lon}););out body;`;
 
   // Launch all mirrors simultaneously — first success wins
   const mirrorRaces = OVERPASS_MIRRORS.map(async (mirrorUrl) => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
+    const timeoutId = setTimeout(() => controller.abort(), 18000);
     try {
       const url = `${mirrorUrl}?data=${encodeURIComponent(query)}`;
       const res = await fetch(url, {
@@ -44,7 +47,13 @@ export async function queryNearbyFacilities(lat, lon, radius = 5000) {
         Promise.resolve(p).then(resolve).catch(err => {
           errors[i] = err;
           rejCount++;
-          if (rejCount === promises.length) reject(new AggregateError(errors, 'All mirrors failed'));
+          if (rejCount === promises.length) {
+            const msg = 'All mirrors failed: ' + errors.map(e => e.message || e).join(', ');
+            const errObj = typeof AggregateError !== 'undefined'
+              ? new AggregateError(errors, msg)
+              : new Error(msg);
+            reject(errObj);
+          }
         });
       });
     });
@@ -74,6 +83,6 @@ function buildAddress(tags = {}) {
     .filter(Boolean).join(', ') || null;
 }
 
-export const FACILITY_COLORS = { hospital: '#E53935', clinic: '#43A047', police: '#1565C0', fire_station: '#FF6D00', pharmacy: '#00897B' };
-export const FACILITY_ICONS = { hospital: '🏥', clinic: '🩺', police: '👮', fire_station: '🚒', pharmacy: '💊' };
-export const FACILITY_LABELS = { hospital: 'Hospital', clinic: 'Clinic', police: 'Police', fire_station: 'Fire Station', pharmacy: 'Pharmacy' };
+export const FACILITY_COLORS = { hospital: '#E53935', clinic: '#43A047', police: '#1565C0', fire_station: '#FF6D00', pharmacy: '#00897B', car_repair: '#7C3AED', roadside_assistance: '#7C3AED' };
+export const FACILITY_ICONS = { hospital: '🏥', clinic: '🩺', police: '👮', fire_station: '🚒', pharmacy: '💊', car_repair: '🔧', roadside_assistance: '🔧' };
+export const FACILITY_LABELS = { hospital: 'Hospital', clinic: 'Clinic', police: 'Police', fire_station: 'Fire Station', pharmacy: 'Pharmacy', car_repair: 'Mechanic / Towing', roadside_assistance: 'Roadside Assist' };

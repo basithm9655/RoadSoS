@@ -4,19 +4,22 @@ import FacilityCard from '../components/FacilityCard';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { queryNearbyFacilities, FACILITY_LABELS } from '../utils/overpassQuery';
 import { haversine } from '../utils/haversine';
+import { useLang } from '../context/LanguageContext';
 
-const FILTERS = ['all', 'hospital', 'clinic', 'police', 'fire_station', 'pharmacy'];
+const FILTERS = ['all', 'hospital', 'clinic', 'police', 'fire_station', 'pharmacy', 'car_repair'];
 
 export default function MapPage() {
   const { location: liveLocation, loading: locLoading } = useGeolocation();
+  const { t } = useLang();
   const [facilities, setFacilities] = useState([]);
-  const [location, setLocation] = useState(null);
+  const [location, setLocation] = useState({ lat: 12.9915, lon: 80.2336 });
   const [loading, setLoading] = useState(false);
   const [netStatus, setNetStatus] = useState('idle'); // idle | connecting | success | offline | busy
   const [filter, setFilter] = useState('all');
-  const hasFetchedRef  = useRef(false);
-  const lastFetchTime  = useRef(0);          // timestamp of last successful fetch
-  const FETCH_COOLDOWN = 60 * 1000;          // 1 minute in ms
+  const hasFetchedRef     = useRef(false); // fired at least once (default or real)
+  const hasRealGPSRef     = useRef(false); // fired with real device GPS
+  const lastFetchTime     = useRef(0);     // timestamp of last successful fetch
+  const FETCH_COOLDOWN    = 60 * 1000;     // 1 minute in ms
 
   // Track real-time online/offline changes
   useEffect(() => {
@@ -33,23 +36,28 @@ export default function MapPage() {
 
   // 1. Immediately load cached data on mount for offline visibility
   useEffect(() => {
-    const cachedLoc = localStorage.getItem('roadsos_last_loc');
-    if (cachedLoc) {
-      try { setLocation(JSON.parse(cachedLoc)); } catch (_) {}
-    }
     const cachedFac = localStorage.getItem('roadsos_facilities');
     if (cachedFac) {
       try { setFacilities(JSON.parse(cachedFac)); } catch (_) {}
     }
   }, []);
 
-  // 2. When live GPS resolves, fetch fresh data (respecting 1-min cooldown)
+  // 2a. Fetch on first mount with whatever location we have (IIT Madras default or real GPS)
   useEffect(() => {
-    if (liveLocation && !hasFetchedRef.current) {
+    if (!hasFetchedRef.current) {
       hasFetchedRef.current = true;
+      loadFacilities(location, false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 2b. Re-fetch automatically when REAL GPS lock arrives (accuracy < 100m = not the IIT Madras fallback)
+  useEffect(() => {
+    if (liveLocation && liveLocation.accuracy < 100 && !hasRealGPSRef.current) {
+      hasRealGPSRef.current = true;
       setLocation(liveLocation);
       localStorage.setItem('roadsos_last_loc', JSON.stringify(liveLocation));
-      loadFacilities(liveLocation, false);
+      loadFacilities(liveLocation, true); // force=true to bypass cooldown for first real GPS fetch
     }
   }, [liveLocation]);
 
@@ -91,7 +99,7 @@ export default function MapPage() {
   return (
     <div className="page map-page">
       <div className="page-header">
-        <h1 className="page-title">🗺 Nearest Facilities</h1>
+        <h1 className="page-title">{t('mapTitle')}</h1>
         <button className="refresh-btn" onClick={() => { hasFetchedRef.current = false; loadFacilities(location, true); }} disabled={loading}>
           {loading ? '⏳' : '🔄'}
         </button>
@@ -100,20 +108,23 @@ export default function MapPage() {
       {locLoading && !location && (
         <div className="status-banner status-gps">
           <span className="status-dot status-dot-pulse" />
-          Acquiring GPS satellite lock…
+          {t('mapAcquiring')}
         </div>
       )}
 
       <div className="filter-tabs">
-        {FILTERS.map(f => (
-          <button
-            key={f}
-            className={`filter-tab ${filter === f ? 'filter-tab-active' : ''}`}
-            onClick={() => setFilter(f)}
-          >
-            {f === 'all' ? 'All' : FACILITY_LABELS[f]}
-          </button>
-        ))}
+        {FILTERS.map(f => {
+          const filterKey = { all: 'filterAll', hospital: 'filterHospital', clinic: 'filterClinic', police: 'filterPolice', fire_station: 'filterFire', pharmacy: 'filterPharmacy', car_repair: 'filterTowing' }[f];
+          return (
+            <button
+              key={f}
+              className={`filter-tab ${filter === f ? 'filter-tab-active' : ''}`}
+              onClick={() => setFilter(f)}
+            >
+              {t(filterKey) || FACILITY_LABELS[f] || f}
+            </button>
+          );
+        })}
       </div>
 
       <div className="map-container">

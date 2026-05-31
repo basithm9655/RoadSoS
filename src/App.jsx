@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { LanguageProvider } from './context/LanguageContext';
 import BottomNav from './components/BottomNav';
 import Home from './pages/Home';
 import MapPage from './pages/MapPage';
@@ -24,29 +25,31 @@ function SilentLocationRequester({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <div className="app-shell">
-            <SilentLocationRequester>
-              <div className="app-content">
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/map" element={<MapPage />} />
-                  <Route path="/family" element={<FamilyPage />} />
-                  <Route path="/numbers" element={<EmergencyNumbers />} />
-                  <Route path="/community" element={<CommunityPage />} />
-                  <Route path="/chatbot" element={<ChatbotPage />} />
-                  <Route path="/crowd-rescue" element={<CrowdRescuePage />} />
-                  <Route path="/ambulance-dashboard" element={<AmbulanceDashboard />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/more" element={<MorePage />} />
-                </Routes>
-              </div>
-              <BottomNav />
-            </SilentLocationRequester>
-          </div>
-        </ToastProvider>
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <div className="app-shell">
+              <SilentLocationRequester>
+                <div className="app-content">
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/map" element={<MapPage />} />
+                    <Route path="/family" element={<FamilyPage />} />
+                    <Route path="/numbers" element={<EmergencyNumbers />} />
+                    <Route path="/community" element={<CommunityPage />} />
+                    <Route path="/chatbot" element={<ChatbotPage />} />
+                    <Route path="/crowd-rescue" element={<CrowdRescuePage />} />
+                    <Route path="/ambulance-dashboard" element={<AmbulanceDashboard />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/more" element={<MorePage />} />
+                  </Routes>
+                </div>
+                <BottomNav />
+              </SilentLocationRequester>
+            </div>
+          </ToastProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }
