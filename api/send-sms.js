@@ -1,5 +1,5 @@
-// Vercel Serverless Function: Secure Google Form SOS Dispatch for Email Automation
-// Submits emergency data to Google Forms securely, bypassing CORS restrictions
+// Vercel Serverless Function: Direct Google Apps Script SOS Web App Dispatch
+// Securely submits JSON SOS alert payloads directly to the user's Google Web App endpoint
 
 export default async function handler(req, res) {
   // CORS Headers
@@ -26,40 +26,41 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: 'No contacts provided' });
   }
 
-  console.log(`[Google Form SOS] Dispatching alerts for ${userName} to ${contacts.length} recipients...`);
+  // Active Google Apps Script Web App URL provided by the user
+  const scriptUrl = "https://script.google.com/macros/s/AKfycbzBw_8gRcNHRoRrOqy7yRsrGOshjzGsMR8ThBSef5yJqcY7XETIAh_EjvdXpow9rI0_Ww/exec";
 
-  // Target Google Form Action URL
-  const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLSf1ZQdEm-3BoaWsoru6nVELnGgiP7lEX28FaGEA7P8ihTNSHA/formResponse";
+  console.log(`[Google Apps Script] Sending SOS alerts for ${userName} to ${contacts.length} recipients...`);
 
   const promises = contacts.map(async (c) => {
     if (!c.email) return { email: c.email, success: false, error: 'Missing email address' };
 
     try {
-      // Build form-urlencoded request body matching Google Form DOM inputs
-      const formParams = new URLSearchParams();
-      formParams.append('entry.2005620554', time || new Date().toLocaleTimeString()); // time field
-      formParams.append('entry.1745558313', `RoadSOS Alert triggered by ${userName}`); // location description
-      formParams.append('entry.1851319683', mapsLink || 'Location unavailable'); // map link
-      formParams.append('entry.128770266', c.email.trim()); // target family email
-
-      // Technical Form metadata
-      formParams.append('fvv', '1');
-      formParams.append('pageHistory', '0');
-      formParams.append('fbzx', '2819671829864127061');
-
-      const response = await fetch(formUrl, {
+      const response = await fetch(scriptUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
+          'Content-Type': 'application/json'
         },
-        body: formParams.toString()
+        body: JSON.stringify({
+          userName: userName || 'Unknown User',
+          mapsLink: mapsLink || 'Location Details Pending Live GPS Lock',
+          time: time || new Date().toLocaleTimeString(),
+          email: c.email.trim()
+        }),
+        redirect: 'follow' // Follow Google Apps Script 302 redirects automatically
       });
 
-      // Google Forms returns HTML content, so we verify response status (typically 200 OK even upon submit)
+      const text = await response.text();
+      let data = {};
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = { raw: text };
+      }
+
       if (response.ok) {
-        return { email: c.email, success: true };
+        return { email: c.email, success: true, details: data };
       } else {
-        throw new Error(`Google Forms returned status ${response.status}`);
+        throw new Error(`Google Web App rejected with status ${response.status}`);
       }
     } catch (err) {
       return { email: c.email, success: false, error: err.message };
@@ -70,7 +71,7 @@ export default async function handler(req, res) {
     const outputs = await Promise.all(promises);
     const successful = outputs.filter((o) => o.success).length;
 
-    console.log(`[Google Form SOS] Completed: ${successful}/${outputs.length} successful form entries submitted.`);
+    console.log(`[Google Apps Script] Completed: ${successful}/${outputs.length} successful transmissions.`);
     return res.status(200).json({
       success: true,
       delivered: successful,
