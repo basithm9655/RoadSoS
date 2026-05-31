@@ -83,10 +83,11 @@ export default function FamilyPage() {
       return res.json();
     })
     .then(data => {
-      if (data.success) {
+      if (data.success && data.delivered > 0) {
         showToast(`📲 WhatsApp Test Alert successfully sent to ${data.delivered} contact(s)!`, 'success', 6000);
       } else {
-        throw new Error(data.error || 'Test dispatch rejected');
+        const firstErr = data.details?.[0]?.error || data.error || 'Recipient not verified in Meta Console';
+        throw new Error(firstErr);
       }
     })
     .catch(err => {
