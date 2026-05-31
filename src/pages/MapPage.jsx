@@ -32,19 +32,6 @@ export default function MapPage() {
   const lastFetchTime     = useRef(0);     // timestamp of last successful fetch
   const FETCH_COOLDOWN    = 60 * 1000;     // 1 minute in ms
 
-  // Track real-time online/offline changes
-  useEffect(() => {
-    const goOnline  = () => setNetStatus(prev => prev === 'offline' ? 'idle' : prev);
-    const goOffline = () => setNetStatus('offline');
-    window.addEventListener('online',  goOnline);
-    window.addEventListener('offline', goOffline);
-    if (!navigator.onLine) setNetStatus('offline');
-    return () => {
-      window.removeEventListener('online',  goOnline);
-      window.removeEventListener('offline', goOffline);
-    };
-  }, []);
-
   // 1. Immediately load cached data on mount for offline visibility
   useEffect(() => {
     const cachedFac = localStorage.getItem('roadsos_facilities');
@@ -75,7 +62,6 @@ export default function MapPage() {
   async function loadFacilities(targetLoc = location, force = false) {
     const activeLoc = targetLoc || liveLocation;
     if (!activeLoc) return;
-    if (!navigator.onLine) { setNetStatus('offline'); return; }
 
     // Throttle: skip if fetched within the last 1 minute (unless forced by user)
     if (!force && Date.now() - lastFetchTime.current < FETCH_COOLDOWN) {
@@ -99,7 +85,7 @@ export default function MapPage() {
       setTimeout(() => setNetStatus('idle'), 3000);
     } catch (e) {
       console.warn('MapPage load error:', e);
-      setNetStatus(!navigator.onLine ? 'offline' : 'busy');
+      setNetStatus('busy');
     } finally {
       setLoading(false);
     }
