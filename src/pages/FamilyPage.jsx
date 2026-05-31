@@ -187,7 +187,7 @@ export default function FamilyPage() {
         <ul>
           <li>📍 Your active GPS coordinates are fetched</li>
           <li>✉️ Email notification is dispatched automatically</li>
-          <li>🔔 Integrates securely with Google Forms & Apps Script automation</li>
+          <li>🔔 Integrates securely with your <a href="https://docs.google.com/forms/d/e/1FAIpQLSf1ZQdEm-3BoaWsoru6nVELnGgiP7lEX28FaGEA7P8ihTNSHA/viewform?usp=dialog" target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', textDecoration: 'underline' }}>Linked Google Form</a></li>
           <li>🔁 Live updates are synchronized securely</li>
         </ul>
       </div>
